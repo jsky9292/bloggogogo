@@ -19,6 +19,7 @@ import PeopleAlsoAsk from './components/PeopleAlsoAsk';
 import SerpStrategyReport from './components/SerpStrategyReport';
 import CurrentStatus from './components/CurrentStatus';
 import ApiKeySettings from './components/ApiKeySettings';
+import ApiKeyStatus from './components/ApiKeyStatus';
 import BlogPostDisplay from './components/BlogPostDisplay';
 import ModeToggle from './components/ModeToggle';
 import AuthModal from './components/AuthModal';
@@ -549,7 +550,10 @@ const App: React.FC = () => {
                         borderBottom: '1px solid #e2e8f0'
                     }}>
                         {config.mode === 'local' ? (
-                            <ApiKeySettings />
+                            <div>
+                                <ApiKeyStatus />
+                                <ApiKeySettings />
+                            </div>
                         ) : (
                             <div>
                                 {currentUser ? (

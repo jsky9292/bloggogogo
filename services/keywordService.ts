@@ -2,6 +2,23 @@
 import type { KeywordData, SearchSource, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, PaaItem, SerpStrategyReportData, WeatherData } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 
+// API 키 가져오기 헬퍼 함수
+const getApiKey = (): string => {
+    // 1. 사용자가 설정한 개인 API 키 확인 (localStorage)
+    const userApiKey = localStorage.getItem('gemini_api_key');
+    if (userApiKey && userApiKey.trim()) {
+        return userApiKey.trim();
+    }
+
+    // 2. 기본 환경변수 API 키 사용
+    const defaultApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (defaultApiKey && defaultApiKey.trim()) {
+        return defaultApiKey.trim();
+    }
+
+    throw new Error('API 키가 설정되지 않았습니다. 설정에서 Gemini API 키를 입력해주세요.');
+};
+
 // NOTE: To combat the inherent unreliability of public CORS proxies, this service employs a highly resilient, multi-strategy approach.
 // 1. Diverse Strategies: It uses a list of proxies that work differently (e.g., direct pass-through vs. JSON-wrapped content), increasing the chance that at least one method will bypass blocking or server issues.
 // 2. Increased Timeout: A generous 15-second timeout accommodates slower proxies.
@@ -199,7 +216,7 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     // 키워드 길이 제한 (너무 긴 키워드 방지)
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -440,7 +457,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     // 롭테일 키워드 처리: 100자 이상이면 자름
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
     
@@ -585,7 +602,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
         throw new Error("프롬프트가 비어있습니다.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -688,7 +705,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
     const responseSchema = {
       type: Type.ARRAY,
@@ -791,7 +808,7 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!keyword.trim()) throw new Error("분석할 키워드가 없습니다.");
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -876,7 +893,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!keyword.trim()) throw new Error("분석할 키워드가 없습니다.");
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -971,7 +988,7 @@ ${paaText}
 
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1063,7 +1080,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
     if (!keyword.trim()) {
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1365,7 +1382,7 @@ export const generateBlogPost = async (
     platform: 'naver' | 'google',
     tone: 'friendly' | 'expert' | 'informative' = 'informative'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown'; schemaMarkup?: string }> => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤',
@@ -1498,7 +1515,7 @@ HTML 형식으로 작성하세요.
 };
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const prompt = `
     오늘 서울의 현재 날씨를 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
