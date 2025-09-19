@@ -1,0 +1,42 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 환경 변수 - 절대 업로드 금지!
+.env
+.env.local
+.env.production
+.env.development
+
+# 관리자 정보
+ADMIN_CREDENTIALS.txt
+
+# 스크린샷
+*.png
+*.jpg
+*.jpeg
+
+# 임시 스크립트
+createAdmin.html
+scripts/createAdmin.js
