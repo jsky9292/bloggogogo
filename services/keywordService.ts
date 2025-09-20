@@ -432,15 +432,33 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
-    const titleElements = Array.from(doc.querySelectorAll('a.title_link')).slice(0, 10);
-    
+    // 다양한 선택자 시도
+    let titleElements = Array.from(doc.querySelectorAll('a.title_link'));
+
+    // 첫 번째 선택자가 실패하면 다른 선택자 시도
+    if (titleElements.length === 0) {
+        titleElements = Array.from(doc.querySelectorAll('a.api_txt_lines'));
+    }
+    if (titleElements.length === 0) {
+        titleElements = Array.from(doc.querySelectorAll('.total_tit > a'));
+    }
+    if (titleElements.length === 0) {
+        titleElements = Array.from(doc.querySelectorAll('.view_wrap .title_area a'));
+    }
+    if (titleElements.length === 0) {
+        titleElements = Array.from(doc.querySelectorAll('a[class*="title"]'));
+    }
+
+    // 상위 10개만 선택
+    titleElements = titleElements.slice(0, 10);
+
     const results: BlogPostData[] = titleElements
         .map((element, index) => {
             const titleElement = element as HTMLAnchorElement;
-            const title = titleElement.innerText.trim();
+            const title = titleElement.innerText?.trim() || titleElement.textContent?.trim() || '';
             const url = titleElement.href;
-            
-            if (title && url) {
+
+            if (title && url && url.startsWith('http')) {
                 return { id: index + 1, title, url };
             }
             return null;
