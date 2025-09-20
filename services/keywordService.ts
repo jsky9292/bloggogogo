@@ -1527,14 +1527,60 @@ export const generateBlogPost = async (
     keywords: string[], 
     platform: 'naver' | 'google',
     tone: 'friendly' | 'expert' | 'informative' = 'informative'
-): Promise<{ title: string; content: string; format: 'html' | 'markdown'; schemaMarkup?: string }> => {
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
-    
+
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤',
         expert: '전문가의 권위있는 톤',
         informative: '객관적이고 정보 전달 중심의 톤'
     };
+
+    // 네이버 블로그 테마 정의
+    const naverThemes = [
+        {
+            name: '봄날의 정원',
+            divider: '✿ ✿ ✿ ✿ ✿',
+            bullet: '🌷',
+            highlight: '💐',
+            subheader: '🌺',
+            htmlColor: '#FF69B4'
+        },
+        {
+            name: '바다의 선율',
+            divider: '～～～～～',
+            bullet: '🐚',
+            highlight: '🏖️',
+            subheader: '🌊',
+            htmlColor: '#4682B4'
+        },
+        {
+            name: '카페 다이어리',
+            divider: '☕ • ☕ • ☕',
+            bullet: '☕',
+            highlight: '📝',
+            subheader: '📖',
+            htmlColor: '#8B4513'
+        },
+        {
+            name: '달빛 산책',
+            divider: '✦ ✦ ✦ ✦ ✦',
+            bullet: '⭐',
+            highlight: '🌟',
+            subheader: '🌙',
+            htmlColor: '#4B0082'
+        },
+        {
+            name: '행운의 클로버',
+            divider: '🍀 — 🍀 — 🍀',
+            bullet: '🌱',
+            highlight: '🌿',
+            subheader: '🍀',
+            htmlColor: '#228B22'
+        }
+    ];
+
+    const selectedNaverTheme = naverThemes[Math.floor(Math.random() * naverThemes.length)];
 
     let prompt = '';
     
@@ -1546,32 +1592,49 @@ export const generateBlogPost = async (
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
 
+## 선택된 테마: ${selectedNaverTheme.name}
+- 구분선: ${selectedNaverTheme.divider}
+- 글머리: ${selectedNaverTheme.bullet}
+- 강조: ${selectedNaverTheme.highlight}
+- 소제목: ${selectedNaverTheme.subheader}
+
 네이버 블로그용 글을 일반 텍스트 형식으로 작성해주세요:
 
-1. 글 구조:
-   - 매력적인 제목
+1. 글 구조 (테마 적용):
+   - 매력적인 제목에 ${selectedNaverTheme.highlight} 포함
    - 도입부: 흥미로운 질문이나 통계로 시작
    - 본문: 3-4개의 소제목으로 구분
-   - 각 소제목은 【】 또는 ■ 기호로 표시
-   - 중요 내용은 ✓ 또는 • 로 강조
+   - 각 소제목은 ${selectedNaverTheme.subheader} 기호로 표시
+   - 중요 내용은 ${selectedNaverTheme.bullet} 로 강조
+   - 섹션 구분선: ${selectedNaverTheme.divider}
    - 마무리: 핵심 요약과 행동 유도
 
 2. C-rank 최적화:
    - 키워드를 자연스럽게 포함
    - 키워드 밀도 3-5% 유지
+   - 사용자 체류시간 증가를 위한 스토리텔링
 
-3. DIA 로직:
+3. DIA(Deep Intent Analysis) 로직:
    - 실제 데이터와 통계 포함
    - 유용한 정보 체계적 전달
    - 검색 의도에 대한 명확한 답변
+   - 개인적 경험과 전문 정보의 균형
 
-4. 총 1800-2000자로 작성
+4. 작성 스타일:
+   - 친근하고 대화체 문장
+   - 짧고 읽기 쉬운 문단 (3-4줄)
+   - 이모티콘은 절제 (문단당 최대 1개)
+   - "~했어요", "~더라고요" 같은 자연스러운 어미 사용
 
-중요: 
+5. 이미지 위치 표시: [이미지: 설명]
+
+6. 총 1800-2000자로 작성
+
+중요:
 - 일반 텍스트 형식으로 작성 (HTML 태그 사용 금지)
 - 네이버 블로그 에디터에 바로 붙여넣을 수 있는 형식
 - 줄바꿈과 문단 구분 명확히
-- 이모지는 적절히 사용 가능
+- 테마 이모지와 특수문자를 적절히 활용
 
 일반 텍스트 형식으로 작성하세요.
         `.trim();
@@ -1761,11 +1824,139 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
             schemaMarkup = generateSchemaMarkup(title, description, keywords, platform);
         }
 
+        // 네이버용 HTML 미리보기 생성
+        let htmlPreview = '';
+        if (platform === 'naver' && finalContent) {
+            const theme = naverThemes.find(t => finalContent.includes(t.name)) || naverThemes[0];
+            htmlPreview = `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            line-height: 1.8;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: ${theme.htmlColor};
+            font-size: 28px;
+            border-bottom: 3px solid ${theme.htmlColor};
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: ${theme.htmlColor};
+            font-size: 22px;
+            margin: 30px 0 15px;
+            padding: 10px;
+            background: linear-gradient(90deg, ${theme.htmlColor}10 0%, transparent 100%);
+            border-left: 4px solid ${theme.htmlColor};
+        }
+
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            color: ${theme.htmlColor};
+            font-size: 20px;
+            opacity: 0.6;
+        }
+
+        .image-placeholder {
+            background: linear-gradient(135deg, ${theme.htmlColor}20 0%, ${theme.htmlColor}10 100%);
+            border: 2px dashed ${theme.htmlColor};
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+            color: ${theme.htmlColor};
+            font-weight: 500;
+        }
+
+        p {
+            margin: 15px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .highlight {
+            background: ${theme.htmlColor}15;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid ${theme.htmlColor}30;
+            color: ${theme.htmlColor};
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        ul li:before {
+            content: "${theme.bullet} ";
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>${title}</h1>
+        ${finalContent.split('\n').map(line => {
+            if (line.includes('[이미지:')) {
+                return `<div class="image-placeholder">${line}</div>`;
+            } else if (line.includes(theme.divider)) {
+                return `<div class="divider">${line}</div>`;
+            } else if (line.includes(theme.subheader)) {
+                return `<h2>${line}</h2>`;
+            } else if (line.includes(theme.bullet)) {
+                return `<ul><li>${line.replace(theme.bullet, '').trim()}</li></ul>`;
+            } else if (line.includes(theme.highlight)) {
+                return `<p><span class="highlight">${line}</span></p>`;
+            } else if (line.trim()) {
+                return `<p>${line}</p>`;
+            }
+            return '';
+        }).filter(Boolean).join('\n')}
+        <div class="footer">
+            ${theme.highlight} ${theme.highlight} ${theme.highlight}
+        </div>
+    </div>
+</body>
+</html>
+            `.trim();
+        }
+
         return {
             title,
             content: finalContent,
             format: platform === 'naver' ? 'text' : 'html',
-            schemaMarkup: platform === 'google' ? schemaMarkup : undefined
+            schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
+            htmlPreview: htmlPreview || undefined
         };
     } catch (error) {
         if (error instanceof Error) {
