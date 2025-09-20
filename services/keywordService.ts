@@ -1576,62 +1576,144 @@ export const generateBlogPost = async (
 일반 텍스트 형식으로 작성하세요.
         `.trim();
     } else {
-        // Google SEO
+        // Google SEO with GEMS Guidelines and Random Theme
+        const themes = [
+            { name: '블루-그레이', primary: '#1a73e8', secondary: '#f5f5f5', accent: '#e8f4fd' },
+            { name: '그린-오렌지', primary: '#00796b', secondary: '#fff3e0', accent: '#e0f2f1' },
+            { name: '퍼플-옐로우', primary: '#6200ea', secondary: '#fffde7', accent: '#f3e5f5' },
+            { name: '틸-라이트그레이', primary: '#00897b', secondary: '#fafafa', accent: '#e0f2f1' },
+            { name: '테라코타-라이트그레이', primary: '#d84315', secondary: '#f5f5f5', accent: '#ffccbc' },
+            { name: '클래식 블루', primary: '#1565c0', secondary: '#e3f2fd', accent: '#bbdefb' },
+            { name: '네이처 그린', primary: '#2e7d32', secondary: '#e8f5e9', accent: '#c8e6c9' },
+            { name: '로얄 퍼플', primary: '#4a148c', secondary: '#f3e5f5', accent: '#e1bee7' },
+            { name: '퓨처 틸', primary: '#00acc1', secondary: '#e0f7fa', accent: '#b2ebf2' },
+            { name: '어스 테라코타', primary: '#bf360c', secondary: '#fbe9e7', accent: '#ffccbc' }
+        ];
+
+        const selectedTheme = themes[Math.floor(Math.random() * themes.length)];
+
         prompt = `
-당신은 구글 SEO 전문가입니다. E-E-A-T와 최신 구글 알고리즘을 완벽히 이해하고 있습니다.
+당신은 구글 SEO 전문가이자 GEMS 가이드라인을 완벽히 이해하는 콘텐츠 크리에이터입니다.
 
 **반드시 데스크톱 버전의 Google 검색을 사용하여 정보를 검색하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
+선택된 테마: ${selectedTheme.name} (Primary: ${selectedTheme.primary}, Secondary: ${selectedTheme.secondary})
 
-구글 SEO에 최적화된 블로그 글을 작성해주세요.
+GEMS 가이드라인에 따라 전문적이고 시각적인 구글 SEO 최적화 블로그 글을 작성해주세요.
 
-**출력 형식: 반드시 아래 형식을 따라 주세요**
+**출력 형식: 반드시 아래 형식을 정확히 따라주세요**
 
 [TITLE]
-여기에 제목 (평문 텍스트)
+SEO 최적화된 제목 (60자 이내, 키워드 포함)
 [/TITLE]
 
 [CONTENT]
-<h1>제목</h1>
+<div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; font-size: 16px; box-sizing: border-box;">
 
-<p>도입부 내용...</p>
+    <!-- 메타설명 박스 -->
+    <div style="background-color: ${selectedTheme.secondary}; padding: 15px; border-radius: 8px; font-style: italic; margin-bottom: 25px; font-size: 15px;">
+        <strong>[핵심 질문/키워드]</strong> [독자의 호기심을 자극하는 1-2문장]
+    </div>
 
-<h2>첫 번째 섹션 제목</h2>
-<p>내용...</p>
+    <!-- 도입부 -->
+    <p style="margin-bottom: 15px;">[개인적 경험이나 공감대 형성, 문제 제기, 해결책 암시, 적절한 이모티콘 😊]</p>
 
-<h3>소제목</h3>
-<p>내용...</p>
+    <!-- 섹션 간 여백 -->
+    <p data-ke-size="size16">&nbsp;</p>
 
-<ul>
-  <li>리스트 항목 1</li>
-  <li>리스트 항목 2</li>
-</ul>
+    <!-- 첫 번째 주요 섹션 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>[섹션 제목]</strong> [관련 이모티콘]
+    </h2>
 
-<h2>FAQ</h2>
-<h3>질문 1?</h3>
-<p>답변...</p>
+    <p style="margin-bottom: 15px;">[내용 - 일상 대화체, 전문용어는 쉽게 설명]</p>
 
-<p>결론 내용...</p>
+    <!-- 팁 박스 -->
+    <div style="background-color: ${selectedTheme.accent}; border-left: 4px solid ${selectedTheme.primary}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <strong>💡 알아두세요!</strong><br>
+        [중요한 팁이나 정보]
+    </div>
+
+    <!-- 두 번째 주요 섹션 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>[섹션 제목]</strong> 📊
+    </h2>
+
+    <p style="margin-bottom: 15px;">[내용] <span style="background-color: #fffde7; padding: 2px 4px; border-radius: 3px;">[강조할 키워드]</span></p>
+
+    <!-- 표 -->
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <thead>
+            <tr>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; font-weight: bold;">[열 제목]</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">[내용]</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- FAQ 섹션 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>자주 묻는 질문 (FAQ)</strong> ❓
+    </h2>
+
+    <h3 style="font-size: 18px; color: #333; margin: 20px 0 10px;">[질문 1]</h3>
+    <p style="margin-bottom: 15px;">[답변]</p>
+
+    <!-- 결론 -->
+    <div style="background-color: ${selectedTheme.secondary}; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <h2 style="font-size: 20px; color: ${selectedTheme.primary}; margin: 0 0 10px;">핵심 정리 📝</h2>
+        <ol style="margin: 0 0 15px 20px; padding: 0;">
+            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 1]</strong></li>
+            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 2]</strong></li>
+            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 3]</strong></li>
+        </ol>
+    </div>
+
+    <!-- 추가 정보 섹션 -->
+    <div style="border-top: 1px dashed #ddd; margin: 30px 0; padding-top: 20px;">
+        <h3 style="font-size: 18px; color: #333; margin: 15px 0;">📌 추가 정보</h3>
+
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin-bottom: 10px;"><strong>🔍 핵심 키워드:</strong></p>
+            <p style="margin: 0; color: #555;">${keywords.join(', ')}</p>
+        </div>
+
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin-bottom: 10px;"><strong>🎨 이미지 생성 프롬프트 (Midjourney/DALL-E):</strong></p>
+            <p style="margin: 0; color: #555; font-style: italic;">[주제와 관련된 구체적이고 창의적인 이미지 생성 프롬프트를 한글로 작성. 예: "${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션, 파스텔 톤 색상, 깔끔한 배경, 전문적인 블로그 헤더 이미지 스타일"]</p>
+        </div>
+
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin-bottom: 10px;"><strong>📝 SEO 최적 제목 제안 (5개):</strong></p>
+            <ol style="margin: 0 0 0 20px; padding: 0;">
+                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 1]</li>
+                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 2]</li>
+                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 3]</li>
+                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 4]</li>
+                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 5]</li>
+            </ol>
+        </div>
+    </div>
+
+</div>
 [/CONTENT]
 
-글 작성 요구사항:
-1. 총 2500-3000자로 작성
+작성 요구사항:
+1. 총 2500-3000자로 작성 (한글 기준)
 2. E-E-A-T 원칙 적용 (경험, 전문성, 권위, 신뢰성)
 3. Featured Snippet을 위한 직접적인 답변 포함
-4. 리스트와 표를 적극 활용
+4. 테이블과 리스트를 적극 활용
 5. LSI 키워드 자연스럽게 포함
-
-HTML 태그 사용:
-- h1, h2, h3: 제목과 소제목
-- p: 일반 문단
-- ul, ol, li: 리스트
-- table, tr, td, th: 표
-- strong: 중요한 텍스트
-- em: 강조
-- blockquote: 인용
+6. 친근하면서도 전문적인 톤 유지
+7. 적절한 이모티콘으로 친근감 추가
+8. 시각적 구분을 위한 박스와 하이라이트 활용
 
 반드시 데스크톱 검색 결과를 기반으로 작성하세요.
         `.trim();
