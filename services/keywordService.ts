@@ -468,7 +468,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
 **분석 기준일: ${formattedDate}**
 분석할 키워드: "${processedKeyword}"
 
-Google 검색을 사용하여 다음 항목에 대한 최신 정보를 조사하고 분석해 주세요:
+**중요: 반드시 데스크톱 버전의 Google 검색을 사용하여** 다음 항목에 대한 최신 정보를 조사하고 분석해 주세요:
 - 검색 관심도 및 최근 1년간의 검색 트렌드
 - 경쟁 강도 (상위 페이지의 권위, 콘텐츠 포화도 등)
 - **총 검색 결과 수 (문서 노출 수)**
@@ -1004,7 +1004,7 @@ export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> 
     - 모든 분석과 키워드 제안은 **반드시 오늘(${formattedDate}) 날짜를 기준으로, 최근 24시간 이내에 발생했거나 오늘부터 효력이 발생하는 가장 새로운 정보**에 근거해야 합니다. 절대 며칠 전의 이슈를 재활용해서는 안 됩니다.
 
     [작업 목표]
-    Google 검색을 활용하여, 위 지시사항에 따라 검색량은 폭증하고 있으나 아직 양질의 콘텐츠가 부족한(경쟁 강도 낮음) 키워드 **총 10개**를 발굴하고, 아래 JSON 형식에 맞춰 완벽한 블로그 공략법을 제안하세요.
+    **데스크톱 버전의 Google 검색**을 활용하여, 위 지시사항에 따라 검색량은 폭증하고 있으나 아직 양질의 콘텐츠가 부족한(경쟁 강도 낮음) 키워드 **총 10개**를 발굴하고, 아래 JSON 형식에 맞춰 완벽한 블로그 공략법을 제안하세요.
 
     [조건]
     1.  **정책/제도 키워드 (정확히 5개)**: **오늘(${formattedDate})부터 실제 시행되거나, 오늘 발표된 새로운 정책/제도** 관련 키워드여야 합니다.
@@ -1518,7 +1518,7 @@ HTML 형식으로 작성하세요.
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const prompt = `
-    오늘 서울의 현재 날씨를 Google 검색을 사용해서 알려주세요. 
+    오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
     다른 설명 없이 JSON 코드 블록 형식으로만 응답해주세요.
     
