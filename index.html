@@ -2,10 +2,22 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' alignment-baseline='middle' font-size='80'>🔍</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Keyword Insight Pro - SEO Research & Analysis Tool</title>
+    <!-- Tailwind CSS - Development only. For production, use PostCSS plugin -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Suppress Tailwind CDN warning in development
+      if (typeof tailwind !== 'undefined') {
+        tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {}
+          }
+        }
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
