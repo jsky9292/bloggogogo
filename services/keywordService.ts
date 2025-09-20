@@ -438,59 +438,152 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
-    // 다양한 선택자 시도
-    let titleElements = Array.from(doc.querySelectorAll('a.title_link'));
-    console.log('Found with a.title_link:', titleElements.length);
+    // 네이버 블로그 검색 결과에서 포스트 제목만 정확히 추출
+    let titleElements: Element[] = [];
 
-    // 첫 번째 선택자가 실패하면 다른 선택자 시도
-    if (titleElements.length === 0) {
-        titleElements = Array.from(doc.querySelectorAll('a.api_txt_lines'));
-        console.log('Found with a.api_txt_lines:', titleElements.length);
-    }
-    if (titleElements.length === 0) {
-        titleElements = Array.from(doc.querySelectorAll('.total_tit > a'));
-        console.log('Found with .total_tit > a:', titleElements.length);
-    }
-    if (titleElements.length === 0) {
-        titleElements = Array.from(doc.querySelectorAll('.view_wrap .title_area a'));
-        console.log('Found with .view_wrap .title_area a:', titleElements.length);
-    }
-    if (titleElements.length === 0) {
-        titleElements = Array.from(doc.querySelectorAll('a[class*="title"]'));
-        console.log('Found with a[class*="title"]:', titleElements.length);
-    }
+    // 방법 1: 각 검색 결과 블록을 찾아서 처리
+    const searchBlocks = Array.from(doc.querySelectorAll('.view_wrap, .bx, .api_ani_send'));
+    console.log('Found search blocks:', searchBlocks.length);
 
-    // 모든 a 태그 확인 (디버깅용)
-    if (titleElements.length === 0) {
-        const allLinks = Array.from(doc.querySelectorAll('a'));
-        console.log('Total <a> tags in document:', allLinks.length);
-        console.log('First 5 <a> tag classes:', allLinks.slice(0, 5).map(a => a.className));
-    }
+    if (searchBlocks.length > 0) {
+        for (const block of searchBlocks) {
+            // 각 블록에서 제목 링크 찾기
+            // 제목은 주로 .total_tit 클래스를 가진 첫 번째 링크
+            const titleLink = block.querySelector('a.total_tit:first-of-type, .title_link:first-of-type');
 
-    // 상위 10개만 선택
-    titleElements = titleElements.slice(0, 10);
+            if (!titleLink) {
+                // total_tit이 없으면 가장 큰 폰트 크기를 가진 링크 찾기
+                const links = Array.from(block.querySelectorAll('a[href*="blog"]'));
+                const filteredLinks = links.filter(a => {
+                    const text = a.textContent?.trim() || '';
+                    // 본문이나 해시태그가 아닌 제목인지 확인
+                    return text.length > 10 &&
+                           text.length < 100 && // 제목은 보통 100자 이내
+                           !text.includes('#') && // 해시태그 제외
+                           !text.includes('...') && // 본문 미리보기 제외
+                           !a.className.includes('dsc') && // 설명문 제외
+                           !a.className.includes('api_txt_lines.dsc_txt'); // 본문 제외
+                });
 
-    const results: BlogPostData[] = titleElements
-        .map((element, index) => {
-            const titleElement = element as HTMLAnchorElement;
-            const title = titleElement.innerText?.trim() || titleElement.textContent?.trim() || '';
-            const url = titleElement.href;
-
-            if (title && url && url.startsWith('http')) {
-                return { id: index + 1, title, url };
+                if (filteredLinks.length > 0) {
+                    titleElements.push(filteredLinks[0]);
+                }
+            } else {
+                titleElements.push(titleLink);
             }
-            return null;
-        })
-        .filter((item): item is BlogPostData => item !== null);
+        }
+        console.log('Found titles from blocks:', titleElements.length);
+    }
+
+    // 방법 2: 직접 선택자로 시도 (블록 방식이 실패한 경우)
+    if (titleElements.length === 0) {
+        // 네이버 블로그 검색의 제목 전용 클래스
+        titleElements = Array.from(doc.querySelectorAll('a.total_tit:not(.sub_tit)'));
+        console.log('Found with a.total_tit:', titleElements.length);
+    }
+
+    if (titleElements.length === 0) {
+        // 대체 선택자
+        titleElements = Array.from(doc.querySelectorAll('.total_area > a:first-child, .title_area > a:first-child'))
+            .filter(a => {
+                const text = a.textContent?.trim() || '';
+                // 본문이 아닌 제목 확인
+                return text &&
+                       !text.includes('#') &&
+                       !text.includes('...') &&
+                       text.length > 10 &&
+                       text.length < 100;
+            });
+        console.log('Found with title areas:', titleElements.length);
+    }
+
+    // 방법 3: 특정 패턴으로 필터링
+    if (titleElements.length === 0) {
+        const allLinks = Array.from(doc.querySelectorAll('a[href*="blog.naver.com"], a[href*="tistory.com"]'));
+
+        titleElements = allLinks.filter(a => {
+            const text = a.textContent?.trim() || '';
+            const parent = a.parentElement;
+            const classes = a.className;
+
+            // 제목의 특징
+            const isTitle =
+                !classes.includes('dsc') && // 본문 아님
+                !classes.includes('sub') && // 부제목 아님
+                !classes.includes('user') && // 사용자명 아님
+                !text.includes('#') && // 해시태그 아님
+                !text.includes('...') && // 본문 미리보기 아님
+                text.length > 15 && // 너무 짧지 않음
+                text.length < 80 && // 너무 길지 않음
+                !parent?.className.includes('dsc_area') && // 설명 영역이 아님
+                !parent?.className.includes('tag_area'); // 태그 영역이 아님
+
+            return isTitle;
+        });
+
+        // 각 URL당 하나씩만 (중복 제거)
+        const uniqueUrls = new Set<string>();
+        titleElements = titleElements.filter(a => {
+            const url = (a as HTMLAnchorElement).href;
+            if (uniqueUrls.has(url)) return false;
+            uniqueUrls.add(url);
+            return true;
+        });
+
+        console.log('Found with pattern filter:', titleElements.length);
+    }
+
+    // 디버깅: 결과 확인
+    if (titleElements.length === 0) {
+        console.log('No blog post titles found. Checking page structure...');
+
+        // 모든 링크 확인
+        const allLinks = Array.from(doc.querySelectorAll('a'));
+        const blogLinks = allLinks.filter(a => (a as HTMLAnchorElement).href?.includes('blog'));
+
+        console.log('Total links:', allLinks.length);
+        console.log('Blog links:', blogLinks.length);
+
+        // 긴 텍스트를 가진 링크들 확인
+        const longTextLinks = blogLinks
+            .filter(a => (a.textContent?.trim().length || 0) > 30)
+            .slice(0, 5);
+
+        console.log('Long text blog links:', longTextLinks.map(a => ({
+            class: a.className,
+            parent: a.parentElement?.className,
+            text: a.textContent?.trim().substring(0, 60),
+            href: (a as HTMLAnchorElement).href?.substring(0, 50)
+        })));
+    }
+
+    // 중복 제거 및 상위 10개만 선택
+    const uniqueUrls = new Set<string>();
+    const results: BlogPostData[] = [];
+
+    for (const element of titleElements) {
+        if (results.length >= 10) break;
+
+        const titleElement = element as HTMLAnchorElement;
+        const title = titleElement.innerText?.trim() || titleElement.textContent?.trim() || '';
+        const url = titleElement.href;
+
+        if (title && url && url.startsWith('http') && !uniqueUrls.has(url)) {
+            uniqueUrls.add(url);
+            results.push({
+                id: results.length + 1,
+                title,
+                url
+            });
+        }
+    }
 
     console.log('Final results count:', results.length);
-    if (results.length > 0) {
-        console.log('First result:', results[0]);
-    }
+    console.log('First 3 results:', results.slice(0, 3));
 
     // 결과가 없으면 에러 메시지 개선
     if (results.length === 0) {
-        console.error('No blog posts found. The HTML structure might have changed.');
+        console.error('Failed to find blog posts. HTML sample:', htmlContent.substring(0, 1000));
         throw new Error(`블로그 검색 결과를 찾을 수 없습니다. 키워드: "${keyword}"`);
     }
 
