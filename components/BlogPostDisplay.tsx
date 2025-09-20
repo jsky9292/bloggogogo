@@ -169,6 +169,7 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                             <li>E-E-A-T 원칙이 적용되었습니다</li>
                             <li>Featured Snippet을 위한 구조화된 콘텐츠</li>
                             <li>Schema Markup을 추가하여 검색 결과 향상</li>
+                            <li className="text-yellow-300">HTML 소스코드를 복사하여 블로거/워드프레스의 HTML 편집기에 붙여넣으세요</li>
                         </ul>
                     </div>
                 )}

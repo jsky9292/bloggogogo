@@ -1575,41 +1575,60 @@ export const generateBlogPost = async (
         prompt = `
 당신은 구글 SEO 전문가입니다. E-E-A-T와 최신 구글 알고리즘을 완벽히 이해하고 있습니다.
 
+**반드시 데스크톱 버전의 Google 검색을 사용하여 정보를 검색하세요.**
+
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
 
-구글 SEO에 최적화된 블로그 글을 HTML 형식으로 작성해주세요:
+구글 SEO에 최적화된 블로그 글을 작성해주세요.
 
-1. 글 구조:
-   - 제목 (H1): 키워드 포함, 60자 이내
-   - Meta Description: 155자 이내 요약
-   - 도입부: 검색 의도 파악과 개요
-   - 본문: H2로 구분된 4-5개 섹션
-   - 각 섹션에 H3 소제목 포함
-   - FAQ 섹션 (H2)
-   - 결론
+**출력 형식: 반드시 아래 형식을 따라 주세요**
 
-2. E-E-A-T 원칙:
-   - 실제 경험과 사례 포함
-   - 전문적이고 깊이 있는 내용
-   - 신뢰할 수 있는 정보와 출처
+[TITLE]
+여기에 제목 (평문 텍스트)
+[/TITLE]
 
-3. SEO 최적화:
-   - Featured Snippet을 위한 직접적인 답변 (정의 박스, 리스트, 표)
-   - 리스트(ul, ol)와 표(table) 적극 활용
-   - LSI 키워드 자연스럽게 포함
-   - 내부 링크 제안 위치 표시
+[CONTENT]
+<h1>제목</h1>
 
-4. 총 2500-3000자로 작성
+<p>도입부 내용...</p>
 
-중요:
-- HTML 태그 사용 (h1, h2, h3, p, ul, ol, li, table, tr, td, th, strong, em, blockquote)
-- 티스토리나 워드프레스 HTML 모드에 바로 붙여넣을 수 있는 형식
-- 깔끔하고 구조화된 HTML
-- Schema Markup은 따로 제공하니 본문에 포함하지 마세요
+<h2>첫 번째 섹션 제목</h2>
+<p>내용...</p>
 
-HTML 형식으로 작성하세요.
+<h3>소제목</h3>
+<p>내용...</p>
+
+<ul>
+  <li>리스트 항목 1</li>
+  <li>리스트 항목 2</li>
+</ul>
+
+<h2>FAQ</h2>
+<h3>질문 1?</h3>
+<p>답변...</p>
+
+<p>결론 내용...</p>
+[/CONTENT]
+
+글 작성 요구사항:
+1. 총 2500-3000자로 작성
+2. E-E-A-T 원칙 적용 (경험, 전문성, 권위, 신뢰성)
+3. Featured Snippet을 위한 직접적인 답변 포함
+4. 리스트와 표를 적극 활용
+5. LSI 키워드 자연스럽게 포함
+
+HTML 태그 사용:
+- h1, h2, h3: 제목과 소제목
+- p: 일반 문단
+- ul, ol, li: 리스트
+- table, tr, td, th: 표
+- strong: 중요한 텍스트
+- em: 강조
+- blockquote: 인용
+
+반드시 데스크톱 검색 결과를 기반으로 작성하세요.
         `.trim();
     }
 
@@ -1622,16 +1641,30 @@ HTML 형식으로 작성하세요.
             }
         });
 
-        const content = response.text.trim();
-        
-        // Extract title from content
+        let content = response.text.trim();
+
+        // Extract title and content
         let title = '';
+        let finalContent = content;
+
         if (platform === 'naver') {
-            const titleMatch = content.match(/<h1[^>]*>(.*?)<\/h1>/);
-            title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : topic;
-        } else {
-            const titleMatch = content.match(/^#\s+(.+)$/m);
+            // 네이버는 그대로 사용
+            const titleMatch = content.match(/^(.+)$/m);
             title = titleMatch ? titleMatch[1] : topic;
+        } else {
+            // 구글용 파싱
+            const titleMatch = content.match(/\[TITLE\]([\s\S]*?)\[\/TITLE\]/);
+            const contentMatch = content.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
+
+            if (titleMatch && contentMatch) {
+                title = titleMatch[1].trim();
+                finalContent = contentMatch[1].trim();
+            } else {
+                // 구형 포맷 처리 (폴백)
+                const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/);
+                title = h1Match ? h1Match[1].replace(/<[^>]+>/g, '') : topic;
+                finalContent = content;
+            }
         }
 
         // Schema Markup 생성 (Google용)
@@ -1640,10 +1673,10 @@ HTML 형식으로 작성하세요.
             const description = `${topic}에 대한 종합적인 가이드. ${keywords.join(', ')} 관련 전문적인 정보와 실용적인 팁을 제공합니다.`;
             schemaMarkup = generateSchemaMarkup(title, description, keywords, platform);
         }
-        
+
         return {
             title,
-            content: content,
+            content: finalContent,
             format: platform === 'naver' ? 'text' : 'html',
             schemaMarkup: platform === 'google' ? schemaMarkup : undefined
         };
