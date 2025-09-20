@@ -81,7 +81,7 @@ const App: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
     const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState(() => {
+    const [currentUser, setCurrentUser] = useState<any>(() => {
         const saved = localStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
     });
