@@ -427,26 +427,43 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
     }
     const targetUrl = `https://search.naver.com/search.naver?ssc=tab.blog.all&sm=tab_jum&query=${encodeURIComponent(keyword)}`;
 
+    console.log('Fetching Naver blog posts for:', keyword);
+    console.log('Target URL:', targetUrl);
+
     const htmlContent = await fetchWithProxies(targetUrl, (text) => text);
-    
+
+    console.log('HTML content received, length:', htmlContent.length);
+
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
     // 다양한 선택자 시도
     let titleElements = Array.from(doc.querySelectorAll('a.title_link'));
+    console.log('Found with a.title_link:', titleElements.length);
 
     // 첫 번째 선택자가 실패하면 다른 선택자 시도
     if (titleElements.length === 0) {
         titleElements = Array.from(doc.querySelectorAll('a.api_txt_lines'));
+        console.log('Found with a.api_txt_lines:', titleElements.length);
     }
     if (titleElements.length === 0) {
         titleElements = Array.from(doc.querySelectorAll('.total_tit > a'));
+        console.log('Found with .total_tit > a:', titleElements.length);
     }
     if (titleElements.length === 0) {
         titleElements = Array.from(doc.querySelectorAll('.view_wrap .title_area a'));
+        console.log('Found with .view_wrap .title_area a:', titleElements.length);
     }
     if (titleElements.length === 0) {
         titleElements = Array.from(doc.querySelectorAll('a[class*="title"]'));
+        console.log('Found with a[class*="title"]:', titleElements.length);
+    }
+
+    // 모든 a 태그 확인 (디버깅용)
+    if (titleElements.length === 0) {
+        const allLinks = Array.from(doc.querySelectorAll('a'));
+        console.log('Total <a> tags in document:', allLinks.length);
+        console.log('First 5 <a> tag classes:', allLinks.slice(0, 5).map(a => a.className));
     }
 
     // 상위 10개만 선택
@@ -464,6 +481,17 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
             return null;
         })
         .filter((item): item is BlogPostData => item !== null);
+
+    console.log('Final results count:', results.length);
+    if (results.length > 0) {
+        console.log('First result:', results[0]);
+    }
+
+    // 결과가 없으면 에러 메시지 개선
+    if (results.length === 0) {
+        console.error('No blog posts found. The HTML structure might have changed.');
+        throw new Error(`블로그 검색 결과를 찾을 수 없습니다. 키워드: "${keyword}"`);
+    }
 
     return results;
 };

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테스트 계정 생성기</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+        .btn-info {
+            background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+            color: white;
+        }
+        .results {
+            background: #f7f7f7;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .log-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .log-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .log-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        .log-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .account-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        .account-table th,
+        .account-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .account-table th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-free { background: #e0e0e0; color: #666; }
+        .badge-basic { background: #bbdefb; color: #1565c0; }
+        .badge-pro { background: #fff9c4; color: #f57f17; }
+        .badge-enterprise { background: #e1bee7; color: #6a1b9a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Keyword Insight Pro - 테스트 계정 생성기</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-label">전체 계정</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successCount">0</div>
+                <div class="stat-label">생성 성공</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="existingCount">0</div>
+                <div class="stat-label">기존 계정</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="failedCount">0</div>
+                <div class="stat-label">생성 실패</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <button class="btn-primary" onclick="createAllAccounts()">
+                🎯 전체 계정 생성 (20개)
+            </button>
+            <button class="btn-success" onclick="createAccountsByPlan('free')">
+                📘 Free 계정만 (5개)
+            </button>
+            <button class="btn-success" onclick="createAccountsByPlan('basic')">
+                📙 Basic 계정만 (5개)
+            </button>
+            <button class="btn-success" onclick="createAccountsByPlan('pro')">
+                📕 Pro 계정만 (5개)
+            </button>
+            <button class="btn-success" onclick="createAccountsByPlan('enterprise')">
+                📗 Enterprise 계정만 (3개)
+            </button>
+            <button class="btn-info" onclick="createDemoAccounts()">
+                🎪 데모 계정만 (2개)
+            </button>
+            <button class="btn-danger" onclick="clearResults()">
+                🗑️ 결과 지우기
+            </button>
+        </div>
+
+        <div class="results" id="results">
+            <div class="log-entry log-info">
+                👋 환영합니다! 버튼을 클릭하여 테스트 계정을 생성하세요.
+            </div>
+        </div>
+
+        <table class="account-table">
+            <thead>
+                <tr>
+                    <th>플랜</th>
+                    <th>이메일</th>
+                    <th>비밀번호</th>
+                    <th>사용자명</th>
+                    <th>일일 검색 제한</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge badge-free">Free</span></td>
+                    <td>test.free1~5@bloggogogo.com</td>
+                    <td>Test123!@#</td>
+                    <td>김민수 외 4명</td>
+                    <td>10회</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-basic">Basic</span></td>
+                    <td>test.basic1~5@bloggogogo.com</td>
+                    <td>Test123!@#</td>
+                    <td>강민준 외 4명</td>
+                    <td>50회</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-pro">Pro</span></td>
+                    <td>test.pro1~5@bloggogogo.com</td>
+                    <td>Test123!@#</td>
+                    <td>한동욱 외 4명</td>
+                    <td>200회</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-enterprise">Enterprise</span></td>
+                    <td>test.enterprise1~3@bloggogogo.com</td>
+                    <td>Test123!@#</td>
+                    <td>황대표 외 2명</td>
+                    <td>무제한</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-pro">Demo</span></td>
+                    <td>demo@bloggogogo.com</td>
+                    <td>Demo123!@#</td>
+                    <td>데모사용자</td>
+                    <td>200회</td>
+                </tr>
+                <tr>
+                    <td><span class="badge badge-basic">Guest</span></td>
+                    <td>guest@bloggogogo.com</td>
+                    <td>Guest123!@#</td>
+                    <td>게스트</td>
+                    <td>50회</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB9OTHfn8ys8kC_9TWikwQegLfb3oJuKpE",
+            authDomain: "keyword-insight-pro.firebaseapp.com",
+            projectId: "keyword-insight-pro",
+            storageBucket: "keyword-insight-pro.appspot.com",
+            messagingSenderId: "814882225550",
+            appId: "1:814882225550:web:275de97363373b3f3eb8df"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 테스트 계정 데이터
+        const testAccounts = [
+            // Free 플랜
+            { email: 'test.free1@bloggogogo.com', password: 'Test123!@#', name: '김민수', plan: 'free' },
+            { email: 'test.free2@bloggogogo.com', password: 'Test123!@#', name: '이영희', plan: 'free' },
+            { email: 'test.free3@bloggogogo.com', password: 'Test123!@#', name: '박철수', plan: 'free' },
+            { email: 'test.free4@bloggogogo.com', password: 'Test123!@#', name: '최지은', plan: 'free' },
+            { email: 'test.free5@bloggogogo.com', password: 'Test123!@#', name: '정다은', plan: 'free' },
+
+            // Basic 플랜
+            { email: 'test.basic1@bloggogogo.com', password: 'Test123!@#', name: '강민준', plan: 'basic' },
+            { email: 'test.basic2@bloggogogo.com', password: 'Test123!@#', name: '윤서연', plan: 'basic' },
+            { email: 'test.basic3@bloggogogo.com', password: 'Test123!@#', name: '임하준', plan: 'basic' },
+            { email: 'test.basic4@bloggogogo.com', password: 'Test123!@#', name: '송예은', plan: 'basic' },
+            { email: 'test.basic5@bloggogogo.com', password: 'Test123!@#', name: '조수진', plan: 'basic' },
+
+            // Pro 플랜
+            { email: 'test.pro1@bloggogogo.com', password: 'Test123!@#', name: '한동욱', plan: 'pro' },
+            { email: 'test.pro2@bloggogogo.com', password: 'Test123!@#', name: '문소정', plan: 'pro' },
+            { email: 'test.pro3@bloggogogo.com', password: 'Test123!@#', name: '배준호', plan: 'pro' },
+            { email: 'test.pro4@bloggogogo.com', password: 'Test123!@#', name: '신예림', plan: 'pro' },
+            { email: 'test.pro5@bloggogogo.com', password: 'Test123!@#', name: '오태양', plan: 'pro' },
+
+            // Enterprise 플랜
+            { email: 'test.enterprise1@bloggogogo.com', password: 'Test123!@#', name: '황대표', plan: 'enterprise' },
+            { email: 'test.enterprise2@bloggogogo.com', password: 'Test123!@#', name: '서이사', plan: 'enterprise' },
+            { email: 'test.enterprise3@bloggogogo.com', password: 'Test123!@#', name: '노전무', plan: 'enterprise' },
+
+            // 데모 계정
+            { email: 'demo@bloggogogo.com', password: 'Demo123!@#', name: '데모사용자', plan: 'pro' },
+            { email: 'guest@bloggogogo.com', password: 'Guest123!@#', name: '게스트', plan: 'basic' }
+        ];
+
+        let stats = {
+            total: 0,
+            success: 0,
+            existing: 0,
+            failed: 0
+        };
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = stats.total;
+            document.getElementById('successCount').textContent = stats.success;
+            document.getElementById('existingCount').textContent = stats.existing;
+            document.getElementById('failedCount').textContent = stats.failed;
+        }
+
+        function addLog(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = message;
+            resultsDiv.appendChild(logEntry);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        async function createAccount(accountData) {
+            try {
+                const userCredential = await createUserWithEmailAndPassword(
+                    auth,
+                    accountData.email,
+                    accountData.password
+                );
+
+                const user = userCredential.user;
+
+                const userProfile = {
+                    uid: user.uid,
+                    email: accountData.email,
+                    name: accountData.name,
+                    plan: accountData.plan,
+                    role: 'user',
+                    createdAt: new Date(),
+                    usage: {
+                        searches: 0,
+                        lastReset: new Date()
+                    }
+                };
+
+                if (accountData.plan !== 'free') {
+                    userProfile.subscriptionStart = new Date();
+                    const endDate = new Date();
+                    endDate.setMonth(endDate.getMonth() + 1);
+                    userProfile.subscriptionEnd = endDate;
+                }
+
+                await setDoc(doc(db, 'users', user.uid), userProfile);
+
+                stats.success++;
+                addLog(`✅ 생성 완료: ${accountData.email} (${accountData.plan} 플랜)`, 'success');
+                return true;
+
+            } catch (error) {
+                if (error.code === 'auth/email-already-in-use') {
+                    stats.existing++;
+                    addLog(`⚠️ 이미 존재: ${accountData.email}`, 'warning');
+                } else {
+                    stats.failed++;
+                    addLog(`❌ 생성 실패: ${accountData.email} - ${error.message}`, 'error');
+                }
+                return false;
+            }
+        }
+
+        window.createAllAccounts = async function() {
+            stats = { total: 20, success: 0, existing: 0, failed: 0 };
+            updateStats();
+            addLog('📋 전체 테스트 계정 생성을 시작합니다...', 'info');
+
+            for (const account of testAccounts) {
+                await createAccount(account);
+                updateStats();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            addLog(`🎉 완료! 성공: ${stats.success}, 기존: ${stats.existing}, 실패: ${stats.failed}`, 'info');
+        };
+
+        window.createAccountsByPlan = async function(plan) {
+            const accounts = testAccounts.filter(acc => acc.plan === plan);
+            stats = { total: accounts.length, success: 0, existing: 0, failed: 0 };
+            updateStats();
+            addLog(`📋 ${plan.toUpperCase()} 플랜 계정 생성을 시작합니다...`, 'info');
+
+            for (const account of accounts) {
+                await createAccount(account);
+                updateStats();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            addLog(`🎉 완료! 성공: ${stats.success}, 기존: ${stats.existing}, 실패: ${stats.failed}`, 'info');
+        };
+
+        window.createDemoAccounts = async function() {
+            const demoAccounts = testAccounts.filter(acc =>
+                acc.email === 'demo@bloggogogo.com' || acc.email === 'guest@bloggogogo.com'
+            );
+            stats = { total: 2, success: 0, existing: 0, failed: 0 };
+            updateStats();
+            addLog('📋 데모 계정 생성을 시작합니다...', 'info');
+
+            for (const account of demoAccounts) {
+                await createAccount(account);
+                updateStats();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            addLog(`🎉 완료! 성공: ${stats.success}, 기존: ${stats.existing}, 실패: ${stats.failed}`, 'info');
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+            stats = { total: 0, success: 0, existing: 0, failed: 0 };
+            updateStats();
+            addLog('🧹 결과가 초기화되었습니다.', 'info');
+        };
+    </script>
+</body>
+</html>
