@@ -24,6 +24,7 @@ import BlogPostDisplay from './components/BlogPostDisplay';
 import ModeToggle from './components/ModeToggle';
 import AuthModal from './components/AuthModal';
 import UserDashboard from './components/UserDashboard';
+import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost } from './services/keywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem } from './types';
@@ -1117,6 +1118,14 @@ const App: React.FC = () => {
             {/* 모드 전환 버튼 */}
             <ModeToggle />
             
+            {/* 관리자 대시보드 모달 */}
+            {currentUser && currentUser.role === 'admin' && (
+                <AdminDashboard
+                    isOpen={isAdminDashboardOpen}
+                    onClose={() => setIsAdminDashboardOpen(false)}
+                />
+            )}
+
             {/* 사용자 대시보드 모달 */}
             {currentUser && isUserDashboardOpen && (
                 <UserDashboard

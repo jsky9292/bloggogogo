@@ -28,6 +28,7 @@ export interface UserProfile {
   createdAt: Date;
   subscriptionStart?: Date;
   subscriptionEnd?: Date;
+  apiKey?: string;
   usage?: {
     searches: number;
     lastReset: Date;
@@ -70,7 +71,14 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
     // Firestore에서 사용자 프로필 가져오기
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (userDoc.exists()) {
-      return userDoc.data() as UserProfile;
+      const profile = userDoc.data() as UserProfile;
+
+      // API 키가 있으면 localStorage에 저장
+      if (profile.apiKey) {
+        localStorage.setItem('gemini_api_key', profile.apiKey);
+      }
+
+      return profile;
     } else {
       // 프로필이 없으면 생성 (기존 사용자의 경우)
       const userProfile: UserProfile = {

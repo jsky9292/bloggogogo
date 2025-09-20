@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface ApiKeySettingsProps {
     onApiKeyUpdate?: (key: string) => void;
@@ -38,12 +40,29 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate }) => {
         }
     }, []);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         let saved = false;
+
+        // 현재 로그인한 사용자 정보 가져오기
+        const userStr = localStorage.getItem('user');
+        const currentUser = userStr ? JSON.parse(userStr) : null;
+
         if (geminiKey) {
             localStorage.setItem('gemini_api_key', geminiKey);
             setSavedGeminiKey(geminiKey);
             saved = true;
+
+            // Firestore에도 저장
+            if (currentUser && currentUser.uid) {
+                try {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        apiKey: geminiKey,
+                        updatedAt: new Date()
+                    });
+                } catch (error) {
+                    console.error('Error saving API key to Firestore:', error);
+                }
+            }
         }
         if (claudeKey) {
             localStorage.setItem('claude_api_key', claudeKey);

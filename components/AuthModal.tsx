@@ -41,10 +41,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
             // localStorage에 저장 (호환성 유지)
             const userData = {
                 id: userProfile.uid,
+                uid: userProfile.uid,  // uid 추가
                 email: userProfile.email,
                 name: userProfile.name,
                 plan: userProfile.plan,
-                role: userProfile.role
+                role: userProfile.role,
+                apiKey: userProfile.apiKey
             };
             localStorage.setItem('user', JSON.stringify(userData));
             onSuccess(userData);
