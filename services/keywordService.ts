@@ -438,99 +438,104 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
-    // 네이버 블로그 검색 결과에서 포스트 제목만 정확히 추출
+    // 네이버 블로그 검색 결과에서 실제 포스트 제목 추출 (대문이나 블로그명 제외)
     let titleElements: Element[] = [];
 
-    // 방법 1: 각 검색 결과 블록을 찾아서 처리
-    const searchBlocks = Array.from(doc.querySelectorAll('.view_wrap, .bx, .api_ani_send'));
-    console.log('Found search blocks:', searchBlocks.length);
+    // 방법 1: 네이버 블로그 검색 결과의 정확한 구조 타겟팅
+    // 블로그 검색 결과는 .api_ani_send > .fds-comps-right-image-content-container 구조를 가짐
+    const blogItems = Array.from(doc.querySelectorAll('.api_ani_send, .blog_block, .view_wrap'));
+    console.log('Found blog items:', blogItems.length);
 
-    if (searchBlocks.length > 0) {
-        for (const block of searchBlocks) {
-            // 각 블록에서 제목 링크 찾기
-            // 제목은 주로 .total_tit 클래스를 가진 첫 번째 링크
-            const titleLink = block.querySelector('a.total_tit:first-of-type, .title_link:first-of-type');
+    if (blogItems.length > 0) {
+        for (const item of blogItems) {
+            // 각 블로그 아이템에서 포스트 제목 찾기
+            // 우선순위 1: .total_tit 클래스 (포스트 제목 전용)
+            let titleLink = item.querySelector('a.total_tit, a.api_txt_lines.total_tit');
 
+            // 우선순위 2: .title_link 중에서 유저 정보가 아닌 것
             if (!titleLink) {
-                // total_tit이 없으면 가장 큰 폰트 크기를 가진 링크 찾기
-                const links = Array.from(block.querySelectorAll('a[href*="blog"]'));
-                const filteredLinks = links.filter(a => {
-                    const text = a.textContent?.trim() || '';
-                    // 본문이나 해시태그가 아닌 제목인지 확인
-                    return text.length > 10 &&
-                           text.length < 100 && // 제목은 보통 100자 이내
-                           !text.includes('#') && // 해시태그 제외
-                           !text.includes('...') && // 본문 미리보기 제외
-                           !a.className.includes('dsc') && // 설명문 제외
-                           !a.className.includes('api_txt_lines.dsc_txt'); // 본문 제외
-                });
+                titleLink = item.querySelector('.title_link:not(.user_info):not(.sub_txt)');
+            }
 
-                if (filteredLinks.length > 0) {
-                    titleElements.push(filteredLinks[0]);
+            // 우선순위 3: data-cr-area 속성 활용
+            if (!titleLink) {
+                titleLink = item.querySelector('a[data-cr-area*="tit"]:not([data-cr-area*="blog"]):not([data-cr-area*="sub"])');
+            }
+
+            // 찾은 링크 검증
+            if (titleLink) {
+                const text = titleLink.textContent?.trim() || '';
+                // 블로그 대문이나 블로그명이 아닌 실제 포스트 제목인지 확인
+                if (text.length > 15 &&
+                    text.length < 150 &&
+                    !text.includes('님의 블로그') &&
+                    !text.includes('네이버 블로그') &&
+                    !text.match(/^[가-힣]+님?$/) && // "홍길동" 같은 이름만 있는 경우 제외
+                    !text.includes('#') &&
+                    !text.includes('...')) {
+                    titleElements.push(titleLink);
                 }
-            } else {
-                titleElements.push(titleLink);
             }
         }
-        console.log('Found titles from blocks:', titleElements.length);
     }
 
-    // 방법 2: 직접 선택자로 시도 (블록 방식이 실패한 경우)
+    // 방법 2: 직접 선택자 (백업)
     if (titleElements.length === 0) {
-        // 네이버 블로그 검색의 제목 전용 클래스
-        titleElements = Array.from(doc.querySelectorAll('a.total_tit:not(.sub_tit)'));
-        console.log('Found with a.total_tit:', titleElements.length);
+        // 네이버가 사용하는 정확한 클래스명들
+        const selectors = [
+            'a.total_tit',
+            'a.api_txt_lines.total_tit',
+            '.fds-comps-right-image-title a',
+            '.title_area > a.title_link',
+            'a[data-cr-area="blg*t"]'
+        ];
+
+        for (const selector of selectors) {
+            titleElements = Array.from(doc.querySelectorAll(selector));
+            if (titleElements.length > 0) {
+                console.log(`Found with selector ${selector}:`, titleElements.length);
+                break;
+            }
+        }
     }
 
+    // 방법 3: 휴리스틱 필터링 (최후의 수단)
     if (titleElements.length === 0) {
-        // 대체 선택자
-        titleElements = Array.from(doc.querySelectorAll('.total_area > a:first-child, .title_area > a:first-child'))
-            .filter(a => {
-                const text = a.textContent?.trim() || '';
-                // 본문이 아닌 제목 확인
-                return text &&
-                       !text.includes('#') &&
-                       !text.includes('...') &&
-                       text.length > 10 &&
-                       text.length < 100;
-            });
-        console.log('Found with title areas:', titleElements.length);
-    }
+        const allBlogLinks = Array.from(doc.querySelectorAll('a[href*="blog.naver.com"]'));
 
-    // 방법 3: 특정 패턴으로 필터링
-    if (titleElements.length === 0) {
-        const allLinks = Array.from(doc.querySelectorAll('a[href*="blog.naver.com"], a[href*="tistory.com"]'));
+        // 텍스트 길이와 패턴으로 필터링
+        const candidates = allBlogLinks
+            .map(link => {
+                const text = link.textContent?.trim() || '';
+                const parent = link.parentElement;
+                const grandParent = parent?.parentElement;
 
-        titleElements = allLinks.filter(a => {
-            const text = a.textContent?.trim() || '';
-            const parent = a.parentElement;
-            const classes = a.className;
+                // 점수 기반 평가
+                let score = 0;
 
-            // 제목의 특징
-            const isTitle =
-                !classes.includes('dsc') && // 본문 아님
-                !classes.includes('sub') && // 부제목 아님
-                !classes.includes('user') && // 사용자명 아님
-                !text.includes('#') && // 해시태그 아님
-                !text.includes('...') && // 본문 미리보기 아님
-                text.length > 15 && // 너무 짧지 않음
-                text.length < 80 && // 너무 길지 않음
-                !parent?.className.includes('dsc_area') && // 설명 영역이 아님
-                !parent?.className.includes('tag_area'); // 태그 영역이 아님
+                // 긍정 점수
+                if (text.length > 20 && text.length < 100) score += 2;
+                if (link.className.includes('tit')) score += 3;
+                if (parent?.className.includes('tit')) score += 2;
+                if (!text.includes('님')) score += 1;
+                if (!text.includes('...')) score += 1;
 
-            return isTitle;
-        });
+                // 부정 점수
+                if (link.className.includes('user')) score -= 5;
+                if (link.className.includes('sub')) score -= 3;
+                if (parent?.className.includes('user')) score -= 5;
+                if (parent?.className.includes('sub')) score -= 3;
+                if (text.match(/^[가-힣]{2,5}$/)) score -= 10; // 짧은 이름
+                if (text.includes('블로그')) score -= 3;
 
-        // 각 URL당 하나씩만 (중복 제거)
-        const uniqueUrls = new Set<string>();
-        titleElements = titleElements.filter(a => {
-            const url = (a as HTMLAnchorElement).href;
-            if (uniqueUrls.has(url)) return false;
-            uniqueUrls.add(url);
-            return true;
-        });
+                return { link, text, score };
+            })
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
 
-        console.log('Found with pattern filter:', titleElements.length);
+        titleElements = candidates.map(item => item.link);
+        console.log('Found with heuristic filtering:', titleElements.length);
     }
 
     // 디버깅: 결과 확인
