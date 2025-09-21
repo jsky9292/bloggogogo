@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 // Firebase 설정 - 환경 변수에서 가져오기
 const firebaseConfig = {
@@ -71,7 +71,23 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
     // Firestore에서 사용자 프로필 가져오기
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (userDoc.exists()) {
-      const profile = userDoc.data() as UserProfile;
+      let profile = userDoc.data() as UserProfile;
+
+      // 관리자 계정이면 강제로 Enterprise 플랜으로 설정
+      if (email === 'admin@keywordinsight.com') {
+        profile = {
+          ...profile,
+          plan: 'enterprise',
+          role: 'admin',
+          name: '관리자'
+        };
+        // DB 업데이트
+        await updateDoc(doc(db, 'users', user.uid), {
+          plan: 'enterprise',
+          role: 'admin',
+          name: '관리자'
+        });
+      }
 
       // API 키가 있으면 localStorage에 저장
       if (profile.apiKey) {

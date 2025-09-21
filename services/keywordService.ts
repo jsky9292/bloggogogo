@@ -1,6 +1,6 @@
 
 import type { KeywordData, SearchSource, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, PaaItem, SerpStrategyReportData, WeatherData } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // API 키 가져오기 헬퍼 함수
 const getApiKey = (): string => {
@@ -627,10 +627,11 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     // 롭테일 키워드 처리: 100자 이상이면 자름
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
-    
+
     const prompt = `
 당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가입니다.
 
@@ -686,17 +687,11 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
 `.trim();
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [{googleSearch: {}}],
-                temperature: 0.7,
-                maxOutputTokens: 2048,
-            }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-        const jsonResponse = extractJsonFromText(response.text);
+        const jsonResponse = extractJsonFromText(text);
         
         // --- Data validation ---
         if (
