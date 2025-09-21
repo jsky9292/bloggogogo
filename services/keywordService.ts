@@ -216,7 +216,8 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     // 키워드 길이 제한 (너무 긴 키워드 방지)
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -274,22 +275,17 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
   `.trim();
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
-      },
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    console.log('AI Response text:', response.text);
-    
-    if (!response.text) {
+    console.log('AI Response text:', text);
+
+    if (!text) {
         throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
     }
-    
-    const result = extractJsonFromText(response.text);
+
+    const keywords = extractJsonFromText(text);
     
     // Type validation and cleaning
     if (result && Array.isArray(result.related_searches) && Array.isArray(result.people_also_ask)) {
@@ -767,7 +763,8 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
         throw new Error("프롬프트가 비어있습니다.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -815,15 +812,11 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
     `.trim();
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: wrapperPrompt,
-            config: {
-                tools: [{googleSearch: {}}],
-            }
-        });
+        const result = await model.generateContent(wrapperPrompt);
+        const response = await result.response;
+        const text = response.text();
 
-        const jsonResponse = extractJsonFromText(response.text);
+        const jsonResponse = extractJsonFromText(text);
         
         if (!jsonResponse.keyword || !jsonResponse.analysis || !jsonResponse.analysis.conclusion) {
             throw new Error('AI로부터 유효하지 않은 형식의 응답을 받았습니다.');
@@ -870,7 +863,8 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const responseSchema = {
       type: Type.ARRAY,
@@ -895,16 +889,13 @@ const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTo
     };
     
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
             }
         });
 
-        const parsed = JSON.parse(response.text.trim());
+        const parsed = JSON.parse(text.trim());
 
         if (!Array.isArray(parsed)) {
             throw new Error('AI 응답이 배열 형식이 아닙니다.');
@@ -973,7 +964,8 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!keyword.trim()) throw new Error("분석할 키워드가 없습니다.");
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -1021,16 +1013,13 @@ ${topTitles}
     };
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
             }
         });
 
-        const parsed = JSON.parse(response.text.trim());
+        const parsed = JSON.parse(text.trim());
         
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
@@ -1058,7 +1047,8 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!keyword.trim()) throw new Error("분석할 키워드가 없습니다.");
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1118,16 +1108,13 @@ ${paaText}
     };
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
             }
         });
 
-        const parsed = JSON.parse(response.text.trim());
+        const parsed = JSON.parse(text.trim());
         
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
@@ -1153,7 +1140,8 @@ ${paaText}
 
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1197,15 +1185,11 @@ export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> 
     `.trim();
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }],
-            }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-        const parsed = extractJsonFromText(response.text);
+        const parsed = extractJsonFromText(text);
 
         if (!Array.isArray(parsed)) {
             throw new Error('AI 응답이 배열 형식이 아닙니다.');
@@ -1245,7 +1229,8 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
     if (!keyword.trim()) {
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1467,16 +1452,13 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
     };
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema,
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
             }
         });
 
-        const parsed = JSON.parse(response.text.trim());
+        const parsed = JSON.parse(text.trim());
 
         if (!Array.isArray(parsed) || parsed.some(p => !p.category || !Array.isArray(p.suggestions))) {
             throw new Error('AI 응답이 유효한 형식이 아닙니다.');
@@ -1547,7 +1529,8 @@ export const generateBlogPost = async (
     platform: 'naver' | 'google',
     tone: 'friendly' | 'expert' | 'informative' = 'informative'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤',
@@ -1802,15 +1785,11 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
     }
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }],
-            }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-        let content = response.text.trim();
+        let content = text.trim();
 
         // Extract title and content
         let title = '';
@@ -1986,7 +1965,8 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
 };
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const prompt = `
     오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
@@ -2003,14 +1983,10 @@ export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     `.trim();
 
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }],
-            }
-        });
-        const parsed = extractJsonFromText(response.text);
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        const parsed = extractJsonFromText(text);
         if (parsed.temperature && parsed.condition && parsed.wind && parsed.humidity) {
             return parsed as WeatherData;
         } else {
