@@ -3,7 +3,12 @@ import React, { useState } from 'react';
 import type { RecommendedKeyword } from '../types';
 import CopyButton from './CopyButton';
 
-const RecommendedKeywordsDisplay: React.FC<{ data: RecommendedKeyword[] }> = ({ data }) => {
+interface RecommendedKeywordsDisplayProps {
+    data: RecommendedKeyword[];
+    onGenerateBlogPost?: (item: any) => void;
+}
+
+const RecommendedKeywordsDisplay: React.FC<RecommendedKeywordsDisplayProps> = ({ data, onGenerateBlogPost }) => {
     const [openIndex, setOpenIndex] = useState<number | null>(0);
 
     const toggleAccordion = (index: number) => {
@@ -11,7 +16,7 @@ const RecommendedKeywordsDisplay: React.FC<{ data: RecommendedKeyword[] }> = ({ 
     };
 
     const formatAllDataForCopy = () => {
-        let text = `[오늘의 전략 키워드 분석]\n\n`;
+        let text = `[오늘의 글감]\n\n`;
         data.forEach((item, index) => {
             text += `${index + 1}. 키워드: ${item.keyword}\n`;
             text += `   - 선정 이유: ${item.reason}\n`;
@@ -28,7 +33,7 @@ const RecommendedKeywordsDisplay: React.FC<{ data: RecommendedKeyword[] }> = ({ 
             <h3 className="flex items-center justify-between text-lg font-bold text-red-400">
                 <span className="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    <span className="ml-2">오늘의 전략 키워드 분석</span>
+                    <span className="ml-2">오늘의 글감</span>
                 </span>
                 <CopyButton textToCopy={formatAllDataForCopy()} />
             </h3>
@@ -54,7 +59,47 @@ const RecommendedKeywordsDisplay: React.FC<{ data: RecommendedKeyword[] }> = ({ 
                         
                         {openIndex === index && (
                             <div id={`reco-content-${index}`} className="p-4 border-t border-gray-700 bg-black animate-fade-in space-y-4">
-                                <div className="flex justify-end -mb-2">
+                                <div className="flex justify-between -mb-2">
+                                    <div className="flex gap-2">
+                                        {onGenerateBlogPost && (
+                                            <>
+                                                <button
+                                                    onClick={() => onGenerateBlogPost({
+                                                        id: item.id,
+                                                        title: item.title,
+                                                        thumbnailCopy: item.thumbnailCopy,
+                                                        strategy: item.strategy,
+                                                        keywords: [item.keyword],
+                                                        platform: 'naver'
+                                                    })}
+                                                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1"
+                                                    title="네이버 블로그용 글 작성"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                    </svg>
+                                                    네이버 글쓰기
+                                                </button>
+                                                <button
+                                                    onClick={() => onGenerateBlogPost({
+                                                        id: item.id,
+                                                        title: item.title,
+                                                        thumbnailCopy: item.thumbnailCopy,
+                                                        strategy: item.strategy,
+                                                        keywords: [item.keyword],
+                                                        platform: 'google'
+                                                    })}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1"
+                                                    title="구글 SEO용 글 작성"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                    </svg>
+                                                    구글 글쓰기
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                     <CopyButton textToCopy={`키워드: ${item.keyword}\n선정 이유: ${item.reason}\n추천 제목: ${item.title}\n썸네일 문구: ${item.thumbnailCopy}\n공략법: ${item.strategy}`} />
                                 </div>
                                 <div>

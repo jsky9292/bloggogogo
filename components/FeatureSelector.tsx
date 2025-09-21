@@ -118,7 +118,7 @@ const FeatureSelector: React.FC<FeatureSelectorProps> = ({ selectedFeature, onSe
                                 <span>분석 중...</span>
                             </div>
                         ) : (
-                            '오늘의 전략 키워드'
+                            '오늘의 글감'
                         )}
                     </span>
                 </span>

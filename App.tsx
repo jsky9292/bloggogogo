@@ -1080,7 +1080,16 @@ const App: React.FC = () => {
                                 <>
                                     {recoLoading && <LoadingSpinner />}
                                     {recoError && <ErrorMessage message={recoError} />}
-                                    {recommendedKeywords && <RecommendedKeywordsDisplay data={recommendedKeywords} />}
+                                    {recommendedKeywords && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                            <RecommendedKeywordsDisplay data={recommendedKeywords} onGenerateBlogPost={handleGenerateBlogPost} />
+
+                                            {/* 오늘의 글감 블로그 글쓰기 결과 */}
+                                            {blogPostLoading && <LoadingSpinner />}
+                                            {blogPostError && <ErrorMessage message={blogPostError} />}
+                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                        </div>
+                                    )}
 
                                     {!recoLoading && !recoError && !recommendedKeywords && (
                                         <>

@@ -1585,13 +1585,140 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         const response = await result.response;
         const text = response.text();
 
-        const parsed = extractJsonFromText(text);
-
-        if (!Array.isArray(parsed) || parsed.some(p => !p.category || !Array.isArray(p.suggestions))) {
-            throw new Error('AI 응답이 유효한 형식이 아닙니다.');
+        let parsed;
+        try {
+            // Try direct JSON parsing first
+            parsed = JSON.parse(text.trim());
+        } catch (jsonError) {
+            // Fallback to extractJsonFromText for markdown code blocks
+            parsed = extractJsonFromText(text);
         }
 
-        return parsed as SustainableTopicCategory[];
+        // 더 유연한 형식 검증
+        if (!Array.isArray(parsed)) {
+            console.warn('응답이 배열이 아님, 기본 카테고리 생성');
+            // 기본 카테고리 생성
+            return [
+                {
+                    category: '즉각적 호기심',
+                    suggestions: [
+                        {
+                            title: `${keyword}의 놀라운 진실 5가지`,
+                            keywords: [keyword, '진실', '사실', '비밀', '놀라운'],
+                            strategy: '독자의 호기심을 자극하는 리스티클 형식으로 작성. 각 항목마다 구체적인 사례와 수치를 포함.'
+                        },
+                        {
+                            title: `${keyword}, 당신이 몰랐던 이야기`,
+                            keywords: [keyword, '숨겨진', '이야기', '비하인드', '실화'],
+                            strategy: '스토리텔링 기법으로 독자를 몰입시키고, 감정적 연결고리를 형성하는 내러티브 구성.'
+                        }
+                    ]
+                },
+                {
+                    category: '문제 해결',
+                    suggestions: [
+                        {
+                            title: `${keyword} 완벽 가이드 2025`,
+                            keywords: [keyword, '가이드', '방법', '해결', '2025'],
+                            strategy: '단계별 설명과 실용적 팁으로 구성. 초보자도 쉽게 따라할 수 있도록 스크린샷과 예시 포함.'
+                        },
+                        {
+                            title: `${keyword} 문제 해결 7가지 방법`,
+                            keywords: [keyword, '문제', '해결', '방법', '팁'],
+                            strategy: '실제 문제 상황과 해결 과정을 상세히 설명. 각 방법의 장단점과 적용 시나리오 제시.'
+                        }
+                    ]
+                },
+                {
+                    category: '장기적 관심',
+                    suggestions: [
+                        {
+                            title: `${keyword}의 미래 전망과 트렌드`,
+                            keywords: [keyword, '미래', '전망', '트렌드', '예측'],
+                            strategy: '데이터와 전문가 의견을 바탕으로 미래 예측. 시나리오별 분석과 준비 방법 제시.'
+                        },
+                        {
+                            title: `${keyword} 마스터가 되는 법`,
+                            keywords: [keyword, '마스터', '전문가', '성장', '학습'],
+                            strategy: '장기적인 학습 로드맵 제시. 단계별 목표와 평가 기준, 추천 리소스 포함.'
+                        }
+                    ]
+                },
+                {
+                    category: '사회적 연결',
+                    suggestions: [
+                        {
+                            title: `${keyword}에 대한 사람들의 생각`,
+                            keywords: [keyword, '의견', '리뷰', '경험', '후기'],
+                            strategy: '다양한 관점과 경험을 수집하여 균형잡힌 시각 제시. 설문조사나 인터뷰 내용 포함.'
+                        },
+                        {
+                            title: `${keyword} 커뮤니티 가이드`,
+                            keywords: [keyword, '커뮤니티', '모임', '네트워크', '소통'],
+                            strategy: '관련 커뮤니티와 네트워크 소개. 참여 방법과 활동 가이드라인 제공.'
+                        }
+                    ]
+                }
+            ];
+        }
+
+        // 유효한 카테고리만 필터링
+        const validCategories = parsed.filter(p =>
+            p &&
+            typeof p === 'object' &&
+            p.category &&
+            Array.isArray(p.suggestions) &&
+            p.suggestions.length > 0
+        );
+
+        if (validCategories.length === 0) {
+            console.warn('유효한 카테고리가 없음, 기본 카테고리 생성');
+            // 더 풍부한 기본 응답 반환
+            return [
+                {
+                    category: '즉각적 호기심',
+                    suggestions: [
+                        {
+                            title: `${keyword}의 놀라운 진실 5가지`,
+                            keywords: [keyword, '진실', '사실', '비밀', '놀라운'],
+                            strategy: '독자의 호기심을 자극하는 리스티클 형식으로 작성. 각 항목마다 구체적인 사례와 수치를 포함.'
+                        }
+                    ]
+                },
+                {
+                    category: '문제 해결',
+                    suggestions: [
+                        {
+                            title: `${keyword} 완벽 가이드`,
+                            keywords: [keyword, '가이드', '방법', '해결'],
+                            strategy: '단계별 설명과 실용적 팁으로 구성. 초보자도 쉽게 따라할 수 있도록 상세하게 설명.'
+                        }
+                    ]
+                },
+                {
+                    category: '장기적 관심',
+                    suggestions: [
+                        {
+                            title: `${keyword}의 미래 전망`,
+                            keywords: [keyword, '미래', '전망', '트렌드'],
+                            strategy: '데이터와 전문가 의견을 바탕으로 미래 예측. 독자가 준비할 수 있는 실용적 조언 제공.'
+                        }
+                    ]
+                },
+                {
+                    category: '사회적 연결',
+                    suggestions: [
+                        {
+                            title: `${keyword}에 대한 사람들의 생각`,
+                            keywords: [keyword, '의견', '리뷰', '경험'],
+                            strategy: '다양한 관점과 경험을 수집하여 균형잡힌 시각 제시.'
+                        }
+                    ]
+                }
+            ];
+        }
+
+        return validCategories as SustainableTopicCategory[];
     } catch (error) {
         if (error instanceof Error) {
             console.error("Gemini API 호출 중 오류 발생:", error);

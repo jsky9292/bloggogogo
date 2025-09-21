@@ -103,9 +103,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
                                 <p className="text-sm leading-relaxed bg-slate-800/50 p-2 rounded-md"><strong>✨ 상세 가이드:</strong> 각 주제마다 포함해야 할 <strong>핵심 키워드 5개</strong>와 <strong>Google 상위 노출을 위한 글쓰기 전략</strong>을 함께 제공하여 콘텐츠의 품질을 높일 수 있습니다.</p>
                             </div>
                             <div>
-                                <h4 className="text-md font-semibold text-yellow-400 mb-2">6) 오늘의 전략 키워드</h4>
+                                <h4 className="text-md font-semibold text-yellow-400 mb-2">6) 오늘의 글감</h4>
                                 <p className="text-sm leading-relaxed mb-2"><strong>목적:</strong> '오늘 당장' 글을 쓰면 효과를 볼 수 있는, 시의성 높고 경쟁이 낮은 키워드를 발굴합니다.</p>
-                                <p className="text-sm leading-relaxed mb-2"><strong>사용법:</strong> 메인 화면의 빨간색 '오늘의 전략 키워드' 버튼을 클릭하세요. AI가 실시간 트렌드를 분석하여 검색량은 폭증하고 있으나 경쟁은 치열하지 않은 '꿀 키워드' 10개를 발굴해줍니다.</p>
+                                <p className="text-sm leading-relaxed mb-2"><strong>사용법:</strong> 메인 화면의 빨간색 '오늘의 글감' 버튼을 클릭하세요. AI가 실시간 트렌드를 분석하여 검색량은 폭증하고 있으나 경쟁은 치열하지 않은 '꿀 키워드' 10개를 발굴해줍니다.</p>
                                 <p className="text-sm leading-relaxed bg-slate-800/50 p-2 rounded-md"><strong>✨ 즉시 활용:</strong> 각 키워드별 **선정 이유, 추천 제목, 썸네일 문구, 상세 공략법**까지 완벽하게 제공되어, 버튼 클릭 한 번으로 하루치 콘텐츠 기획을 끝낼 수 있습니다.</p>
                             </div>
                             <div>
