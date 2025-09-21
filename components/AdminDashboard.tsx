@@ -4,8 +4,9 @@ import { db } from '../src/config/firebase';
 
 interface User {
     uid: string;
-    email: string;
-    name: string;
+    email?: string;
+    displayName?: string;
+    name?: string;
     plan: string;
     role: string;
     createdAt: any;
@@ -42,19 +43,64 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
 
     // onRefresh prop이 변경되면 데이터 다시 가져오기
     useEffect(() => {
-        if (isOpen && onRefresh !== undefined) {
+        console.log('AdminDashboard: onRefresh useEffect 트리거됨');
+        console.log('isOpen:', isOpen, 'onRefresh:', onRefresh);
+        // isOpen이 true이고 onRefresh가 유효한 값일 때만 실행
+        if (isOpen && onRefresh !== undefined && onRefresh > 0) {
+            console.log('AdminDashboard: fetchUsers() 호출 중...');
             fetchUsers();
+        } else {
+            console.log('AdminDashboard: fetchUsers() 호출 조건 불충족 - isOpen:', isOpen, 'onRefresh:', onRefresh);
         }
     }, [onRefresh, isOpen]);
 
     const fetchUsers = async () => {
         try {
+            console.log('fetchUsers 시작...');
             setLoading(true);
+            console.log('Firebase DB 연결 상태:', db ? 'OK' : 'FAIL');
             const usersSnapshot = await getDocs(collection(db, 'users'));
+            console.log('usersSnapshot 받음:', usersSnapshot);
+            console.log('문서 개수:', usersSnapshot.docs.length);
             const usersList = usersSnapshot.docs.map(doc => ({
                 uid: doc.id,
                 ...doc.data()
             } as User));
+            console.log('usersList 생성됨:', usersList);
+
+            // 현재 로그인한 사용자 정보 가져오기
+            const currentUserData = localStorage.getItem('user');
+            const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
+
+            console.log('AdminDashboard: 전체 사용자 수:', usersList.length);
+            console.log('AdminDashboard: 현재 로그인 사용자:', currentUser?.email);
+            console.log('AdminDashboard: localStorage user 전체:', currentUser);
+
+            // 각 사용자의 API 키 상태 로깅
+            usersList.forEach(user => {
+                console.log('=== 사용자 데이터 상세 분석 ===');
+                console.log('전체 사용자 데이터:', user);
+                console.log('사용자 필드들:');
+                console.log('- uid:', user.uid);
+                console.log('- email:', user.email);
+                console.log('- name:', user.name);
+                console.log('- displayName:', user.displayName);
+                console.log('- plan:', user.plan);
+                console.log('- role:', user.role);
+                console.log('- apiKey:', user.apiKey ? '있음' : '없음');
+                console.log('- apiKey 원본값:', user.apiKey);
+                console.log('- 모든 필드 키들:', Object.keys(user));
+                console.log('- 필드명 리스트:', Object.keys(user).join(', '));
+                // 가능한 모든 API 키 필드명 확인
+                console.log('- geminiApiKey:', user.geminiApiKey);
+                console.log('- api_key:', user.api_key);
+                console.log('- gemini_api_key:', user.gemini_api_key);
+                console.log('- createdAt:', user.createdAt);
+                console.log('- updatedAt:', user.updatedAt);
+                console.log('- usage:', user.usage);
+                console.log('================================');
+                console.log(`사용자 ${user.email || user.displayName || user.name || 'Unknown'}: API 키 ${user.apiKey ? '✓ 있음' : '✗ 없음'} (${user.apiKey?.substring(0, 10) || 'undefined'}...)`);
+            });
 
             // 통계 계산
             const stats = {
@@ -163,19 +209,68 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                     }}>
                         관리자 대시보드
                     </h2>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            padding: '8px 16px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            color: '#ffffff',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            borderRadius: '6px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        닫기
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => {
+                                console.log('🔄 새로고침 버튼 클릭됨');
+                                fetchUsers();
+                            }}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            🔄 새로고침
+                        </button>
+                        <button
+                            onClick={async () => {
+                                console.log('관리자 테스트 API 키 추가 시작...');
+                                try {
+                                    await updateDoc(doc(db, 'users', 'zFZyqKsVYTNfUqE4RIXyihd3wjp1'), {
+                                        apiKey: 'AIzaSyTest123456789TestApiKey',
+                                        updatedAt: new Date()
+                                    });
+                                    console.log('관리자 API 키 추가 완료');
+                                    fetchUsers();
+                                } catch (error) {
+                                    console.error('관리자 API 키 추가 오류:', error);
+                                }
+                            }}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: 'rgba(0, 255, 0, 0.3)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            🔑 테스트 API 키 추가
+                        </button>
+                        <button
+                            onClick={onClose}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            닫기
+                        </button>
+                    </div>
                 </div>
 
                 {/* Stats Cards */}
@@ -272,8 +367,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                             <tbody>
                                 {users.map((user) => (
                                     <tr key={user.uid} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                                        <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.email}</td>
-                                        <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.name}</td>
+                                        <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.email || user.displayName || 'No Email'}</td>
+                                        <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.name || user.displayName || 'No Name'}</td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>
                                             <select
                                                 value={user.plan}

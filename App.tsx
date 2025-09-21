@@ -417,8 +417,14 @@ const App: React.FC = () => {
 
     // API 키 업데이트 시 관리자 대시보드 새로고침
     const handleApiKeyUpdate = (apiKey: string) => {
-        console.log('API 키가 업데이트되었습니다:', apiKey ? '✓' : '✗');
-        setAdminRefreshTrigger(prev => prev + 1);
+        console.log('App.tsx: handleApiKeyUpdate 호출됨');
+        console.log('API 키 상태:', apiKey ? '✓ 있음' : '✗ 없음');
+        console.log('이전 adminRefreshTrigger:', adminRefreshTrigger);
+        setAdminRefreshTrigger(prev => {
+            const newValue = prev + 1;
+            console.log('새로운 adminRefreshTrigger:', newValue);
+            return newValue;
+        });
     };
 
     const handleGenerateBlogPostFromSerp = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
@@ -780,7 +786,7 @@ const App: React.FC = () => {
                     
                     {/* Logo Section */}
                     <div style={{
-                        padding: '1rem 1.5rem',  // 세로 padding 줄임 (2rem -> 1rem)
+                        padding: '0.5rem 1rem',  // 세로 padding 더 줄임 (1rem -> 0.5rem)
                         borderBottom: '1px solid #e2e8f0',
                         textAlign: 'center',
                         background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)'
@@ -788,10 +794,10 @@ const App: React.FC = () => {
                         <div style={{
                             display: 'inline-block',
                             background: 'rgba(255, 255, 255, 0.95)',
-                            padding: '0.4rem 1rem',
+                            padding: '0.25rem 0.75rem',  // padding 줄임 (0.4rem 1rem -> 0.25rem 0.75rem)
                             borderRadius: '50px',
-                            marginBottom: '0.75rem',
-                            fontSize: '0.75rem',
+                            marginBottom: '0.5rem',  // margin 줄임 (0.75rem -> 0.5rem)
+                            fontSize: '0.7rem',  // 폰트 크기 줄임 (0.75rem -> 0.7rem)
                             fontWeight: '600',
                             color: '#667eea',
                             boxShadow: '0 4px 15px rgba(102, 126, 234, 0.2)'
@@ -800,9 +806,9 @@ const App: React.FC = () => {
                         </div>
                         
                         <h1 style={{
-                            fontSize: '1.5rem',  // 폰트 크기도 조금 줄임
+                            fontSize: '1.25rem',  // 폰트 크기 더 줄임 (1.5rem -> 1.25rem)
                             fontWeight: '800',
-                            margin: '0 0 0.25rem 0',  // margin도 조정
+                            margin: '0 0 0.1rem 0',  // margin 더 줄임 (0.25rem -> 0.1rem)
                             color: '#ffffff',
                             textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                         }}>

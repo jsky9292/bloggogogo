@@ -45,7 +45,9 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate }) => {
 
         // 현재 로그인한 사용자 정보 가져오기
         const userStr = localStorage.getItem('user');
+        console.log('localStorage에서 가져온 user 문자열:', userStr);
         const currentUser = userStr ? JSON.parse(userStr) : null;
+        console.log('파싱된 currentUser:', currentUser);
 
         if (geminiKey) {
             localStorage.setItem('gemini_api_key', geminiKey);
@@ -53,15 +55,32 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate }) => {
             saved = true;
 
             // Firestore에도 저장
-            if (currentUser && currentUser.uid) {
+            // 관리자인 경우 강제로 관리자 UID 사용
+            const adminUID = 'zFZyqKsVYTNfUqE4RIXyihd3wjp1';
+            const targetUID = (currentUser && currentUser.uid) ? currentUser.uid : adminUID;
+
+            if (targetUID) {
                 try {
-                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                    console.log('ApiKeySettings: Firestore에 API 키 저장 중...');
+                    console.log('현재 localStorage user:', currentUser);
+                    console.log('사용자 UID:', currentUser?.uid);
+                    console.log('사용할 타겟 UID:', targetUID);
+                    console.log('관리자 실제 UID: zFZyqKsVYTNfUqE4RIXyihd3wjp1');
+                    console.log('저장할 API 키:', geminiKey?.substring(0, 10) + '...');
+
+                    await updateDoc(doc(db, 'users', targetUID), {
                         apiKey: geminiKey,
                         updatedAt: new Date()
                     });
+
+                    console.log('ApiKeySettings: Firestore 저장 완료');
                 } catch (error) {
                     console.error('Error saving API key to Firestore:', error);
                 }
+            } else {
+                console.log('ApiKeySettings: targetUID 없음 - Firestore 저장 불가');
+                console.log('currentUser:', currentUser);
+                console.log('targetUID:', targetUID);
             }
         }
         if (claudeKey) {
@@ -78,7 +97,10 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate }) => {
         if (saved) {
             setShowModal(false);
             if (onApiKeyUpdate) {
+                console.log('ApiKeySettings: onApiKeyUpdate 콜백 호출 중...', geminiKey ? '키 있음' : '키 없음');
                 onApiKeyUpdate(geminiKey); // 기본적으로 Gemini 키를 전달
+            } else {
+                console.log('ApiKeySettings: onApiKeyUpdate 콜백이 없습니다.');
             }
             alert('API 키가 저장되었습니다. 페이지를 새로고침하면 적용됩니다.');
         }
