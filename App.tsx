@@ -270,7 +270,14 @@ const App: React.FC = () => {
         }
     };
     
-    const handleGenerateBlogPostFromStrategy = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
+    // CompetitionAnalysisResults와 BlogStrategyReport에서 사용하는 핸들러
+    const handleGenerateBlogPostFromStrategy = async (suggestion: {
+        title: string;
+        thumbnailCopy?: string;
+        strategy?: string;
+        description?: string;
+        platform: 'naver' | 'google'
+    }) => {
         console.log('handleGenerateBlogPostFromStrategy called with:', suggestion);
         setBlogPostLoading(true);
         setBlogPostError(null);
