@@ -146,6 +146,7 @@ const App: React.FC = () => {
         // Reset all states
         setInitialLoad(false);
         setMainKeyword(searchKeyword);
+        setKeyword(searchKeyword); // 키워드도 함께 설정
         setResults([]);
         setError(null);
         setBlogTopics(null);
@@ -276,23 +277,41 @@ const App: React.FC = () => {
         thumbnailCopy?: string;
         strategy?: string;
         description?: string;
-        platform: 'naver' | 'google'
+        platform: 'naver' | 'google';
+        keyword?: string; // CompetitionAnalysisResults에서 전달하는 키워드
     }) => {
-        console.log('handleGenerateBlogPostFromStrategy called with:', suggestion);
-        console.log('Current mainKeyword:', mainKeyword);
-        console.log('Current keyword:', keyword);
+        console.log('=== handleGenerateBlogPostFromStrategy START ===');
+        console.log('suggestion:', suggestion);
+        console.log('mainKeyword:', mainKeyword);
+        console.log('keyword:', keyword);
+        console.log('results:', results);
 
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
 
         try {
-            // mainKeyword가 없으면 keyword 사용
-            const searchKeyword = mainKeyword || keyword;
+            // 우선순위: 1. suggestion.keyword (CompetitionAnalysisResults에서 전달)
+            //          2. mainKeyword (검색시 설정됨)
+            //          3. keyword (입력 필드 값)
+            //          4. results[0].keyword (경쟁력 분석 결과)
+            let searchKeyword = suggestion.keyword || mainKeyword || keyword;
+
+            if (!searchKeyword && isCompetitionResult(results) && results[0]) {
+                searchKeyword = results[0].keyword;
+                console.log('Using keyword from competition results:', searchKeyword);
+            }
 
             if (!searchKeyword) {
-                throw new Error('키워드를 먼저 입력해주세요.');
+                console.error('NO KEYWORD FOUND!');
+                console.error('suggestion.keyword:', suggestion.keyword);
+                console.error('mainKeyword:', mainKeyword);
+                console.error('keyword:', keyword);
+                console.error('results[0]:', results[0]);
+                throw new Error('키워드를 찾을 수 없습니다. 분석을 다시 실행해주세요.');
             }
+
+            console.log('Final searchKeyword:', searchKeyword);
 
             // Better keyword extraction including main keyword
             const keywords = [searchKeyword];
@@ -1070,7 +1089,16 @@ const App: React.FC = () => {
                                             
                                             {!loading && !error && !sustainableTopicsLoading && !sustainableTopicsError &&(
                                                 <>
-                                                    {isCompetitionResult(results) && <CompetitionAnalysisResults data={results[0]} onGenerateBlogPost={handleGenerateBlogPostFromStrategy} />}
+                                                    {isCompetitionResult(results) && (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                                            <CompetitionAnalysisResults data={results[0]} onGenerateBlogPost={handleGenerateBlogPostFromStrategy} />
+
+                                                            {/* 경쟁력 분석 블로그 글쓰기 결과 */}
+                                                            {blogPostLoading && <LoadingSpinner />}
+                                                            {blogPostError && <ErrorMessage message={blogPostError} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                        </div>
+                                                    )}
                                                     {isBlogResults(results) && (
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                                                             <BlogResultsTable data={results} />

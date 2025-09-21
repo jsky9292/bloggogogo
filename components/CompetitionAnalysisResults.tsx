@@ -86,10 +86,11 @@ const MetricCard: React.FC<{ title: string; children: React.ReactNode; className
 
 interface BlogTopicProps {
     topics: { title: string; description: string }[];
-    onGenerateBlogPost?: (topic: { title: string; strategy: string; platform: 'naver' | 'google' }) => void;
+    onGenerateBlogPost?: (topic: { title: string; strategy: string; platform: 'naver' | 'google'; keyword?: string }) => void;
+    keyword?: string;
 }
 
-const SeoStrategyAccordion: React.FC<BlogTopicProps> = ({ topics, onGenerateBlogPost }) => {
+const SeoStrategyAccordion: React.FC<BlogTopicProps> = ({ topics, onGenerateBlogPost, keyword }) => {
     const [openIndex, setOpenIndex] = useState<number | null>(0);
 
     const toggleAccordion = (index: number) => {
@@ -122,14 +123,13 @@ const SeoStrategyAccordion: React.FC<BlogTopicProps> = ({ topics, onGenerateBlog
                                     {onGenerateBlogPost && (
                                         <>
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onGenerateBlogPost({
-                                                        title: topic.title,
-                                                        strategy: topic.description,
-                                                        platform: 'naver'
-                                                    });
-                                                }}
+                                                onClick={() => onGenerateBlogPost({
+                                                    title: topic.title,
+                                                    strategy: topic.description,
+                                                    thumbnailCopy: '',
+                                                    keyword: keyword,
+                                                    platform: 'naver'
+                                                })}
                                                 className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1"
                                                 title="네이버 블로그용 글 작성"
                                             >
@@ -139,14 +139,13 @@ const SeoStrategyAccordion: React.FC<BlogTopicProps> = ({ topics, onGenerateBlog
                                                 네이버 글쓰기
                                             </button>
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onGenerateBlogPost({
-                                                        title: topic.title,
-                                                        strategy: topic.description,
-                                                        platform: 'google'
-                                                    });
-                                                }}
+                                                onClick={() => onGenerateBlogPost({
+                                                    title: topic.title,
+                                                    strategy: topic.description,
+                                                    thumbnailCopy: '',
+                                                    keyword: keyword,
+                                                    platform: 'google'
+                                                })}
                                                 className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-1"
                                                 title="구글 SEO용 글 작성"
                                             >
@@ -183,7 +182,7 @@ const AnalysisSection: React.FC<{ title: string; icon: React.ReactNode; colorCla
 
 interface CompetitionAnalysisResultsProps {
     data: KeywordMetrics;
-    onGenerateBlogPost?: (topic: { title: string; strategy: string; platform: 'naver' | 'google' }) => void;
+    onGenerateBlogPost?: (topic: { title: string; strategy: string; platform: 'naver' | 'google'; keyword?: string; thumbnailCopy?: string }) => void;
 }
 
 const CompetitionAnalysisResults: React.FC<CompetitionAnalysisResultsProps> = ({ data, onGenerateBlogPost }) => {
@@ -320,7 +319,7 @@ const CompetitionAnalysisResults: React.FC<CompetitionAnalysisResultsProps> = ({
                         </div>
                          <div>
                             <h4 className="font-bold text-white mb-3">추천 블로그 제목 및 공략법</h4>
-                            <SeoStrategyAccordion topics={data.strategy.blogTopics} onGenerateBlogPost={onGenerateBlogPost} />
+                            <SeoStrategyAccordion topics={data.strategy.blogTopics} onGenerateBlogPost={onGenerateBlogPost} keyword={data.keyword} />
                         </div>
                     </div>
                 </div>
