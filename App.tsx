@@ -26,7 +26,7 @@ import AuthModal from './components/AuthModal';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
-import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost } from './services/keywordService';
+import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost, generateTrendBlogPost } from './services/keywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem } from './types';
 import { config } from './src/config/appConfig';
 import { updateAdminAccount } from './src/config/firebase';
@@ -325,7 +325,8 @@ const App: React.FC = () => {
             console.log('Platform:', suggestion.platform);
 
             // Use title as the topic
-            const result = await generateBlogPost(
+            // 키워드 경쟁력 분석에서는 실시간 트렌드 블로그 생성 함수 사용
+            const result = await generateTrendBlogPost(
                 suggestion.title,
                 keywords,
                 suggestion.platform,

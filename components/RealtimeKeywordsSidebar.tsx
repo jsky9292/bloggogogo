@@ -24,11 +24,6 @@ const links = [
         url: 'https://datalab.naver.com/',
     },
     {
-        title: '블로그 수익화 전략',
-        description: '스마트한 IT생계백서',
-        url: 'https://smart-it-life.tistory.com/category/블로그수익화',
-    },
-    {
         title: '대한민국 정책포털',
         description: '전국 정책 뉴스와 브리핑',
         url: 'https://www.korea.kr/news/policyNewsList.do',

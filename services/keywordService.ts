@@ -1650,9 +1650,224 @@ const generateSchemaMarkup = (title: string, description: string, keywords: stri
     }
 };
 
+// 실시간 트렌드 키워드용 블로그 생성 함수 (최신 뉴스 검색 포함)
+export const generateTrendBlogPost = async (
+    topic: string,
+    keywords: string[],
+    platform: 'naver' | 'google',
+    tone: 'friendly' | 'expert' | 'informative' = 'informative'
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+    // 오늘 날짜
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+
+    const toneMap = {
+        friendly: '친근하고 대화하는 듯한 톤',
+        expert: '전문가의 권위있는 톤',
+        informative: '객관적이고 정보 전달 중심의 톤'
+    };
+
+    try {
+        // 한 번의 API 호출로 최신 정보 검색과 블로그 생성을 동시에 수행
+        const combinedPrompt = `
+당신은 실시간 트렌드 블로그 작성 전문가입니다.
+오늘은 ${formattedDate}입니다.
+
+주제: ${topic}
+핵심 키워드: ${keywords.join(', ')}
+작성 톤: ${toneMap[tone]}
+
+중요 지침:
+1. 먼저 "${topic}"에 대한 ${today.getFullYear()}년 ${today.getMonth() + 1}월 최신 뉴스와 정보를 검색하세요.
+2. 실제 일어난 사건, 발표, 이슈 등을 파악하세요.
+3. 구체적인 날짜, 인물, 장소, 사실을 포함하세요.
+4. "오늘", "최근", "방금" 등 시의성 있는 표현을 사용하세요.
+5. 대중의 관심사와 반응을 반영하세요.
+
+${platform === 'naver' ? `
+네이버 블로그 형식으로 작성:
+- 1800-2000자
+- 친근한 대화체
+- 이모티콘 적절히 사용
+- [이미지: 설명] 위치 표시
+- 최신 트렌드와 실시간 이슈 중심
+` : `
+구글 SEO 형식으로 작성:
+- 2500-3000자
+- HTML 형식
+- 구조화된 제목과 소제목
+- 최신 정보와 트렌드 포함
+- Featured Snippet 최적화
+`}
+
+반드시 ${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 기준 최신 정보를 반영하여 작성하세요.
+`;
+
+        const result = await model.generateContent(combinedPrompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // 기존 파싱 로직 재사용
+        if (platform === 'naver') {
+            // 네이버용 텍스트에서 마크다운 코드 블록 제거
+            let cleanText = text;
+            // ```로 시작하는 코드 블록 제거
+            cleanText = cleanText.replace(/```[a-z]*\n?/gi, '');
+            cleanText = cleanText.replace(/```/g, '');
+
+            return {
+                title: topic,
+                content: cleanText,
+                format: 'text'
+            };
+        } else {
+            // Google 형식 파싱
+            let title = topic;
+            let content = text;
+            let schemaMarkup = '';
+
+            // 먼저 코드 블록 구문 제거
+            content = content.replace(/```html\n?/gi, '');
+            content = content.replace(/```json-ld\n?/gi, '');
+            content = content.replace(/```/g, '');
+
+            const titleMatch = text.match(/\[TITLE\](.*?)\[\/TITLE\]/s);
+            const contentMatch = text.match(/\[CONTENT\](.*?)\[\/CONTENT\]/s);
+            const schemaMatch = text.match(/\[SCHEMA\](.*?)\[\/SCHEMA\]/s);
+
+            if (titleMatch) title = titleMatch[1].trim();
+            if (contentMatch) {
+                content = contentMatch[1].trim();
+                // 추가로 코드 블록 제거
+                content = content.replace(/```html\n?/gi, '');
+                content = content.replace(/```json-ld\n?/gi, '');
+                content = content.replace(/```/g, '');
+            }
+            if (schemaMatch) {
+                schemaMarkup = schemaMatch[1].trim();
+                // Schema에서도 코드 블록 제거
+                schemaMarkup = schemaMarkup.replace(/```json-ld\n?/gi, '');
+                schemaMarkup = schemaMarkup.replace(/```/g, '');
+            }
+
+            return {
+                title,
+                content,
+                format: 'html',
+                schemaMarkup
+            };
+        }
+
+    } catch (error) {
+        console.error('트렌드 블로그 생성 중 오류:', error);
+        console.log('일반 블로그 생성으로 폴백합니다.');
+        // 오류 발생시 일반 블로그 생성 함수 사용
+        return generateBlogPost(topic, keywords, platform, tone);
+    }
+};
+
+// 뉴스 정보를 포함한 블로그 생성 함수
+const generateBlogPostWithNews = async (
+    topic: string,
+    keywords: string[],
+    platform: 'naver' | 'google',
+    tone: 'friendly' | 'expert' | 'informative',
+    newsInfo: any
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+
+    const toneMap = {
+        friendly: '친근하고 대화하는 듯한 톤',
+        expert: '전문가의 권위있는 톤',
+        informative: '객관적이고 정보 전달 중심의 톤'
+    };
+
+    // 실제 뉴스 정보를 포함한 프롬프트 생성
+    const enhancedPrompt = `
+당신은 실시간 트렌드 블로그 작성 전문가입니다.
+오늘은 ${formattedDate}입니다.
+
+주제: ${topic}
+핵심 키워드: ${keywords.join(', ')}
+
+## 오늘의 실제 뉴스 정보:
+- 핵심 사실: ${newsInfo.mainFact || topic}
+- 관련 인물: ${newsInfo.people?.join(', ') || ''}
+- 시간/장소: ${newsInfo.whenWhere || formattedDate}
+- 세부 정보: ${newsInfo.details?.join('\n') || ''}
+- 대중 반응: ${newsInfo.reactions?.join('\n') || ''}
+
+위의 실제 뉴스 정보를 바탕으로 ${platform === 'naver' ? '네이버' : '구글'} SEO에 최적화된 블로그 글을 작성해주세요.
+
+중요 지침:
+1. 반드시 오늘 일어난 실제 사건/뉴스를 중심으로 작성
+2. 구체적인 사실과 정보를 포함
+3. ${toneMap[tone]}으로 작성
+4. 실시간 트렌드임을 강조 (예: "오늘", "방금", "최신 소식" 등)
+5. 대중의 관심사와 반응 포함
+
+${platform === 'naver' ? `
+네이버 블로그 형식:
+- 1800-2000자
+- 친근한 대화체
+- 이모티콘 적절히 사용
+- [이미지: 설명] 위치 표시
+` : `
+구글 SEO 형식:
+- 2500-3000자
+- HTML 형식
+- 구조화된 제목과 소제목
+- Schema markup 포함
+`}
+
+실제 뉴스 정보를 충실히 반영하여 작성해주세요.
+`;
+
+    // 기존 generateBlogPost 로직 활용하되 enhancedPrompt 사용
+    const result = await model.generateContent(enhancedPrompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // 기존 파싱 로직 재사용...
+    if (platform === 'naver') {
+        return {
+            title: topic,
+            content: text,
+            format: 'text'
+        };
+    } else {
+        // Google 형식 파싱 로직...
+        let title = topic;
+        let content = text;
+        let schemaMarkup = '';
+
+        const titleMatch = text.match(/\[TITLE\](.*?)\[\/TITLE\]/s);
+        const contentMatch = text.match(/\[CONTENT\](.*?)\[\/CONTENT\]/s);
+        const schemaMatch = text.match(/\[SCHEMA\](.*?)\[\/SCHEMA\]/s);
+
+        if (titleMatch) title = titleMatch[1].trim();
+        if (contentMatch) content = contentMatch[1].trim();
+        if (schemaMatch) schemaMarkup = schemaMatch[1].trim();
+
+        return {
+            title,
+            content,
+            format: 'html',
+            schemaMarkup
+        };
+    }
+};
+
 export const generateBlogPost = async (
-    topic: string, 
-    keywords: string[], 
+    topic: string,
+    keywords: string[],
     platform: 'naver' | 'google',
     tone: 'friendly' | 'expert' | 'informative' = 'informative'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
