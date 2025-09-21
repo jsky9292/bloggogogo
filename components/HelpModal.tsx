@@ -97,9 +97,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
                                 <p className="text-sm leading-relaxed bg-slate-800/50 p-2 rounded-md"><strong>✨ SEO 전략 제안:</strong> 성공 가능성 점수가 낮을 경우, AI가 자동으로 해당 키워드를 공략하기 위한 구체적인 **SEO 전략, 확장 키워드, 추천 블로그 주제**까지 상세하게 제안해줍니다.</p>
                             </div>
                              <div>
-                                <h4 className="text-md font-semibold text-yellow-400 mb-2">5) 다각도 블로그 주제 발굴</h4>
+                                <h4 className="text-md font-semibold text-yellow-400 mb-2">5) 4차원 주제발굴</h4>
                                 <p className="text-sm leading-relaxed mb-2"><strong>목적:</strong> 하나의 키워드를 '즉각적 호기심', '문제 해결', '장기적 관심', '사회적 연결' 등 4가지 관점으로 확장하여, 지속 가능한 콘텐츠 아이디어 파이프라인을 구축합니다.</p>
-                                <p className="text-sm leading-relaxed mb-2"><strong>사용법:</strong> '다각도 블로그 주제 발굴' 선택 후 키워드를 입력하면, AI가 사용자의 검색 패턴에 따라 주제를 4가지 카테고리로 분류하여 카테고리별 10개의 주제를 제안합니다.</p>
+                                <p className="text-sm leading-relaxed mb-2"><strong>사용법:</strong> '4차원 주제발굴' 선택 후 키워드를 입력하면, AI가 사용자의 검색 패턴에 따라 주제를 4가지 카테고리로 분류하여 카테고리별 10개의 주제를 제안합니다.</p>
                                 <p className="text-sm leading-relaxed bg-slate-800/50 p-2 rounded-md"><strong>✨ 상세 가이드:</strong> 각 주제마다 포함해야 할 <strong>핵심 키워드 5개</strong>와 <strong>Google 상위 노출을 위한 글쓰기 전략</strong>을 함께 제공하여 콘텐츠의 품질을 높일 수 있습니다.</p>
                             </div>
                             <div>

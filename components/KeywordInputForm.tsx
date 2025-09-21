@@ -23,7 +23,7 @@ const KeywordInputForm: React.FC<KeywordInputFormProps> = ({ onSearch, loading, 
             case 'competition':
                 return '키워드 분석 시작';
             case 'sustainable-topics':
-                return '다각도 주제 발굴';
+                return '4차원 주제발굴';
             case 'related-keywords':
                 return 'AI 활용 연관 검색어 분석';
             case 'keywords':

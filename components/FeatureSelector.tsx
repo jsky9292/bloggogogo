@@ -133,7 +133,7 @@ const FeatureSelector: React.FC<FeatureSelectorProps> = ({ selectedFeature, onSe
             >
                 <span className="flex items-center gap-2">
                     <span>{getIcon('sustainable-topics')}</span>
-                    <span>다각도 블로그 주제 발굴</span>
+                    <span>4차원 주제발굴</span>
                 </span>
                 {selectedFeature === 'sustainable-topics' && <span>✓</span>}
             </button>

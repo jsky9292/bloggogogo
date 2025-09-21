@@ -78,7 +78,26 @@ const App: React.FC = () => {
     const [serpBlogPostError, setSerpBlogPostError] = useState<string | null>(null);
 
     const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
-    
+
+    // 모바일 감지
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent || navigator.vendor;
+            const mobileCheck = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+            const screenCheck = window.innerWidth <= 768;
+            setIsMobile(mobileCheck || screenCheck);
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+        };
+    }, []);
+
     // SaaS 모드 관련 상태
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
@@ -351,6 +370,50 @@ const App: React.FC = () => {
         }
     };
     
+    // 4차원 주제발굴에서 사용하는 핸들러
+    const handleGenerateBlogPostFromSustainable = async (topic: {
+        title: string;
+        keywords: string[];
+        strategy: string;
+        category: string;
+        platform: 'naver' | 'google';
+    }) => {
+        console.log('handleGenerateBlogPostFromSustainable called with:', topic);
+        setBlogPostLoading(true);
+        setBlogPostError(null);
+        setBlogPost(null);
+
+        try {
+            // 카테고리에 따라 톤 결정
+            const toneMap: { [key: string]: 'friendly' | 'expert' | 'informative' } = {
+                '즉각적 호기심': 'friendly',
+                '문제 해결': 'expert',
+                '장기적 관심': 'informative',
+                '사회적 연결': 'friendly'
+            };
+            const tone = toneMap[topic.category] || 'informative';
+
+            // generateBlogPost 함수 사용 - 구글일 때 자동으로 제목 5개, 해시태그, 이미지 프롬프트, 색상 테마 포함
+            const result = await generateBlogPost(
+                topic.title,
+                topic.keywords,
+                topic.platform,
+                tone
+            );
+
+            setBlogPost({ ...result, platform: topic.platform });
+        } catch (err) {
+            console.error('Error in handleGenerateBlogPostFromSustainable:', err);
+            if (err instanceof Error) {
+                setBlogPostError(err.message);
+            } else {
+                setBlogPostError('블로그 글 생성 중 오류가 발생했습니다.');
+            }
+        } finally {
+            setBlogPostLoading(false);
+        }
+    };
+
     const handleGenerateBlogPostFromSerp = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
         console.log('handleGenerateBlogPostFromSerp called with:', suggestion);
         setSerpBlogPostLoading(true);
@@ -589,7 +652,7 @@ const App: React.FC = () => {
         if (feature === 'keywords') return "분석할 키워드를 입력하고 '키워드 검색' 버튼을 눌러주세요.";
         if (feature === 'related-keywords') return "Google SERP를 분석하고 콘텐츠 전략을 수립할 기준 키워드를 입력해주세요.";
         if (feature === 'blogs') return "상위 10개 포스트를 조회할 키워드를 입력해주세요.";
-        if (feature === 'sustainable-topics') return "하나의 키워드를 다양한 관점으로 확장할 '다각도 블로그 주제'를 발굴할 키워드를 입력해주세요.";
+        if (feature === 'sustainable-topics') return "하나의 키워드를 다양한 관점으로 확장할 '4차원 주제발굴'을 진행할 키워드를 입력해주세요.";
         return "";
     }
     
@@ -597,7 +660,7 @@ const App: React.FC = () => {
         if (feature === 'keywords') return "해당 키워드에 대한 자동완성검색어를 찾을 수 없습니다.";
         if (feature === 'related-keywords') return "해당 키워드에 대한 SERP 데이터(관련 검색어, PAA)를 찾을 수 없습니다.";
         if (feature === 'blogs') return "해당 키워드에 대한 블로그 포스트를 찾을 수 없습니다.";
-        if (feature === 'sustainable-topics') return "해당 키워드에 대한 '다각도 블로그 주제'를 발굴할 수 없습니다.";
+        if (feature === 'sustainable-topics') return "해당 키워드에 대한 '4차원 주제발굴'을 진행할 수 없습니다.";
         return "키워드 경쟁력 분석 결과를 가져올 수 없습니다. 다른 키워드로 시도해보세요.";
     }
 
@@ -710,7 +773,7 @@ const App: React.FC = () => {
                     
                     {/* Logo Section */}
                     <div style={{
-                        padding: '2rem 1.5rem',
+                        padding: '1rem 1.5rem',  // 세로 padding 줄임 (2rem -> 1rem)
                         borderBottom: '1px solid #e2e8f0',
                         textAlign: 'center',
                         background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)'
@@ -730,9 +793,9 @@ const App: React.FC = () => {
                         </div>
                         
                         <h1 style={{
-                            fontSize: '1.75rem',
+                            fontSize: '1.5rem',  // 폰트 크기도 조금 줄임
                             fontWeight: '800',
-                            margin: '0 0 0.5rem 0',
+                            margin: '0 0 0.25rem 0',  // margin도 조정
                             color: '#ffffff',
                             textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                         }}>
@@ -747,6 +810,34 @@ const App: React.FC = () => {
                             Advanced SEO Research Platform
                         </p>
                     </div>
+
+                    {/* 모바일 안내 메시지 */}
+                    {isMobile && (
+                        <div style={{
+                            padding: '1rem',
+                            background: '#fffbeb',
+                            borderBottom: '1px solid #fbbf24',
+                            textAlign: 'center'
+                        }}>
+                            <p style={{
+                                margin: '0 0 0.5rem 0',
+                                color: '#92400e',
+                                fontSize: '0.9rem',
+                                fontWeight: '600'
+                            }}>
+                                📱 모바일 환경 안내
+                            </p>
+                            <p style={{
+                                margin: 0,
+                                color: '#78350f',
+                                fontSize: '0.85rem',
+                                lineHeight: '1.4'
+                            }}>
+                                최적의 사용 경험을 위해 <strong>PC 환경</strong>을 권장합니다.<br/>
+                                모바일에서는 일부 기능이 제한될 수 있습니다.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Controls Section */}
                     <div style={{
@@ -1167,7 +1258,19 @@ const App: React.FC = () => {
                                                             {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
                                                         </div>
                                                     )}
-                                                    {sustainableTopics && <SustainableTopicsResults data={sustainableTopics} />}
+                                                    {sustainableTopics && (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                                            <SustainableTopicsResults
+                                                                data={sustainableTopics}
+                                                                onGenerateBlogPost={handleGenerateBlogPostFromSustainable}
+                                                            />
+
+                                                            {/* 4차원 주제발굴 글쓰기 결과 */}
+                                                            {blogPostLoading && <LoadingSpinner />}
+                                                            {blogPostError && <ErrorMessage message={blogPostError} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                        </div>
+                                                    )}
                                                 </>
                                             )}
                                         
