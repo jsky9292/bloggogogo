@@ -272,21 +272,21 @@ const App: React.FC = () => {
     
     const handleGenerateBlogPostFromStrategy = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
         console.log('handleGenerateBlogPostFromStrategy called with:', suggestion);
-        setSerpBlogPostLoading(true);
-        setSerpBlogPostError(null);
-        setSerpBlogPost(null);
+        setBlogPostLoading(true);
+        setBlogPostError(null);
+        setBlogPost(null);
 
         try {
             // Better keyword extraction including main keyword
             const keywords = [mainKeyword];
-            const titleWords = suggestion.title.split(' ').filter(word => 
-                word.length > 2 && word !== mainKeyword && 
+            const titleWords = suggestion.title.split(' ').filter(word =>
+                word.length > 2 && word !== mainKeyword &&
                 !['위한', '하는', '대한', '없는', '있는', '되는', '모든', '통한'].includes(word)
             );
             keywords.push(...titleWords.slice(0, 4));
-            
+
             console.log('Generated keywords:', keywords);
-            
+
             // Use title as the topic
             const result = await generateBlogPost(
                 suggestion.title,
@@ -295,15 +295,15 @@ const App: React.FC = () => {
                 'informative'
             );
 
-            setSerpBlogPost({ ...result, platform: suggestion.platform });
+            setBlogPost({ ...result, platform: suggestion.platform });
         } catch (err) {
             if (err instanceof Error) {
-                setSerpBlogPostError(err.message);
+                setBlogPostError(err.message);
             } else {
-                setSerpBlogPostError('블로그 글 생성 중 오류가 발생했습니다.');
+                setBlogPostError('블로그 글 생성 중 오류가 발생했습니다.');
             }
         } finally {
-            setSerpBlogPostLoading(false);
+            setBlogPostLoading(false);
         }
     };
     
@@ -1016,6 +1016,11 @@ const App: React.FC = () => {
                                                             {strategyLoading && <LoadingSpinner />}
                                                             {strategyError && <ErrorMessage message={strategyError} />}
                                                             {blogStrategy && <BlogStrategyReport data={blogStrategy} onGenerateBlogPost={handleGenerateBlogPostFromStrategy} />}
+
+                                                            {/* Strategy 블로그 글쓰기 결과 - BlogStrategy 바로 아래에 표시 */}
+                                                            {blogPostLoading && <LoadingSpinner />}
+                                                            {blogPostError && <ErrorMessage message={blogPostError} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
                                                         </div>
                                                     )}
                                                     {isGoogleSerpResult(results) && (

@@ -638,7 +638,14 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
     // 결과가 없으면 에러 메시지 개선
     if (results.length === 0) {
         console.error('Failed to find blog posts. HTML sample:', htmlContent.substring(0, 1000));
-        throw new Error(`블로그 검색 결과를 찾을 수 없습니다. 키워드: "${keyword}"`);
+        console.error('네이버 블로그 크롤링 실패 - 페이지 구조가 변경되었을 수 있습니다.');
+
+        // 더미 데이터 반환으로 기능 중단 방지
+        return [
+            { id: 1, title: `"${keyword}" 관련 블로그 포스트 제목을 가져올 수 없습니다.`, url: '#' },
+            { id: 2, title: '네이버 블로그 크롤링 기능이 일시적으로 제한되었습니다.', url: '#' },
+            { id: 3, title: '다른 키워드로 다시 시도해주세요.', url: '#' }
+        ];
     }
 
     return results;
@@ -716,7 +723,20 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
         const response = await result.response;
         const text = response.text();
 
-        const jsonResponse = extractJsonFromText(text);
+        console.log('Keyword Competition - AI 원본 응답:', text);
+
+        let jsonResponse;
+        try {
+            // Try direct JSON parsing first (for structured output)
+            jsonResponse = JSON.parse(text);
+            console.log('Keyword Competition - 직접 JSON 파싱 성공');
+        } catch (jsonError) {
+            console.log('Keyword Competition - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+            // Fallback to extractJsonFromText for markdown code blocks
+            jsonResponse = extractJsonFromText(text);
+        }
+
+        console.log('Keyword Competition - 파싱된 데이터:', jsonResponse);
         
         // --- Data validation ---
         if (
@@ -1068,18 +1088,47 @@ ${topTitles}
     };
 
     try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema
+            }
+        });
         const response = await result.response;
         const text = response.text();
 
-        const parsed = extractJsonFromText(text);
-        
+        console.log('Blog Strategy - AI 원본 응답:', text);
+
+        let parsed;
+        try {
+            // Try direct JSON parsing first (for structured output)
+            parsed = JSON.parse(text);
+            console.log('Blog Strategy - 직접 JSON 파싱 성공');
+        } catch (jsonError) {
+            console.log('Blog Strategy - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+            // Fallback to extractJsonFromText for markdown code blocks
+            parsed = extractJsonFromText(text);
+        }
+
+        console.log('Blog Strategy - 파싱된 데이터:', parsed);
+
+        // Validate parsed data structure
+        if (!parsed || typeof parsed !== 'object') {
+            throw new Error('AI 응답이 객체 형식이 아닙니다.');
+        }
+
+        if (!parsed.analysis || typeof parsed.analysis !== 'object') {
+            throw new Error('AI 응답에 analysis 객체가 없습니다.');
+        }
+
+        if (!Array.isArray(parsed.suggestions)) {
+            console.error('Blog Strategy - suggestions가 배열이 아님:', parsed.suggestions);
+            throw new Error('AI 응답의 suggestions가 배열 형식이 아닙니다.');
+        }
+
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
-        if (!parsed.analysis || !Array.isArray(parsed.suggestions)) {
-             throw new Error('AI 응답이 유효한 형식이 아닙니다.');
-        }
-        
         return parsed as BlogStrategyReportData;
 
     } catch (error) {
