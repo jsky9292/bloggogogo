@@ -22,6 +22,31 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
             );
         } else if (format === 'html') {
             // For Google HTML format
+            const previewTableStyle = viewMode === 'preview' ? `
+                    .blog-content table {
+                        border-collapse: collapse !important;
+                        width: 100% !important;
+                        margin: 1.5em 0 !important;
+                        border: 1px solid #d1d5db !important;
+                    }
+                    .blog-content th, .blog-content td {
+                        border: 1px solid #d1d5db !important;
+                        padding: 0.75em !important;
+                        text-align: left !important;
+                        color: #1f2937 !important;
+                        background-color: #ffffff !important;
+                    }
+                    .blog-content th {
+                        font-weight: bold !important;
+                        background-color: #f3f4f6 !important;
+                        color: #111827 !important;
+                        text-align: center !important;
+                    }
+                    .blog-content table * {
+                        color: #1f2937 !important;
+                    }
+            ` : '';
+
             const styledContent = `
                 <style>
                     .blog-content * { color: #e5e7eb !important; }
@@ -66,9 +91,20 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                         background: #243447 !important;
                     }
                     .blog-content td {
-                        background: transparent !important;
+                        background: #111827 !important;
+                        color: #f3f4f6 !important;
+                    }
+                    .blog-content table * {
+                        color: #f3f4f6 !important;
+                    }
+                    .blog-content table p,
+                    .blog-content table span,
+                    .blog-content table div,
+                    .blog-content table li {
+                        color: #f3f4f6 !important;
                     }
                     .blog-content a { color: #60a5fa !important; text-decoration: underline; }
+                    ${previewTableStyle}
                 </style>
                 ${content}
             `;

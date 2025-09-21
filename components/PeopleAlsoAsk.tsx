@@ -125,7 +125,35 @@ const PeopleAlsoAsk: React.FC<PeopleAlsoAskProps> = ({ data, onGenerateBlogPost 
                                 </div>
                                 <div>
                                     <p className="text-gray-400 text-sm font-bold mb-1">AI 요약 답변:</p>
-                                    <p className="text-white whitespace-pre-wrap leading-relaxed text-sm">{item.answer}</p>
+                                    <div
+                                        className="text-white whitespace-pre-wrap leading-relaxed text-sm"
+                                        style={{
+                                            lineHeight: '1.8'
+                                        }}
+                                        dangerouslySetInnerHTML={{
+                                            __html: `
+                                                <style>
+                                                    table {
+                                                        background: #1f2937 !important;
+                                                        color: #e5e7eb !important;
+                                                        border: 1px solid #374151 !important;
+                                                        margin: 1rem 0;
+                                                    }
+                                                    th, td {
+                                                        padding: 8px !important;
+                                                        border: 1px solid #374151 !important;
+                                                        color: #f3f4f6 !important;
+                                                        background: #1f2937 !important;
+                                                    }
+                                                    th {
+                                                        background: #374151 !important;
+                                                        font-weight: bold;
+                                                    }
+                                                </style>
+                                                ${item.answer}
+                                            `
+                                        }}
+                                    />
                                 </div>
                                 <div className="bg-yellow-900/30 border-l-4 border-yellow-500 p-3 rounded-r-lg">
                                     <p className="text-yellow-300 text-sm font-bold mb-1 flex items-center">

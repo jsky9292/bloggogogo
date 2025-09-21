@@ -1,6 +1,6 @@
 
 import type { KeywordData, SearchSource, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, PaaItem, SerpStrategyReportData, WeatherData } from '../types';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
 // API 키 가져오기 헬퍼 함수
 const getApiKey = (): string => {
@@ -217,7 +217,7 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -286,18 +286,18 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     }
 
     const keywords = extractJsonFromText(text);
-    
+
     // Type validation and cleaning
-    if (result && Array.isArray(result.related_searches) && Array.isArray(result.people_also_ask)) {
+    if (keywords && Array.isArray(keywords.related_searches) && Array.isArray(keywords.people_also_ask)) {
        const citationRegex = /\[\d+(, ?\d+)*\]/g;
 
-       const cleanedPaas = result.people_also_ask.map((paa: PaaItem) => ({
+       const cleanedPaas = keywords.people_also_ask.map((paa: PaaItem) => ({
            question: (paa.question || '').replace(citationRegex, '').trim(),
            answer: (paa.answer || '').replace(citationRegex, '').trim(),
            content_gap_analysis: (paa.content_gap_analysis || '').replace(citationRegex, '').trim(),
        })).slice(0, 5);
 
-       const cleanedRelatedSearches = result.related_searches.map((search: string) => 
+       const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
            (search || '').replace(citationRegex, '').trim()
        );
 
@@ -624,7 +624,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -764,7 +764,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
     }
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -864,23 +864,23 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
     const responseSchema = {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
           title: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: '클릭률이 높은 블로그 포스팅 제목'
           },
           thumbnailCopy: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: '블로그 썸네일에 사용할 짧고 자극적인 문구'
           },
           strategy: {
-            type: Type.STRING,
+            type: SchemaType.STRING,
             description: '이 제목과 썸네일이 왜 효과적인지, 어떤 내용을 어떤 방식으로 담아야 상위 노출이 가능한지에 대한 구체적인 공략법'
           }
         },
@@ -889,22 +889,50 @@ const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTo
     };
 
     try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema
+            }
+        });
         const response = await result.response;
         const text = response.text();
 
-        const parsed = JSON.parse(text.trim());
+        console.log('Blog Topics - AI 원본 응답:', text);
+
+        let parsed;
+        try {
+            // Try direct JSON parsing first (for structured output)
+            parsed = JSON.parse(text);
+            console.log('Blog Topics - 직접 JSON 파싱 성공');
+        } catch (jsonError) {
+            console.log('Blog Topics - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+            // Fallback to extractJsonFromText for markdown code blocks
+            parsed = extractJsonFromText(text);
+        }
+
+        console.log('Blog Topics - 파싱된 데이터:', parsed);
+        console.log('Blog Topics - 데이터 타입:', typeof parsed);
+        console.log('Blog Topics - 배열인가?:', Array.isArray(parsed));
 
         if (!Array.isArray(parsed)) {
+            console.error('Blog Topics - 배열이 아닌 데이터:', parsed);
             throw new Error('AI 응답이 배열 형식이 아닙니다.');
         }
 
-        return parsed.map((item, index) => ({
-            id: index + 1,
-            title: item.title,
-            thumbnailCopy: item.thumbnailCopy,
-            strategy: item.strategy,
-        }));
+        return parsed.map((item, index) => {
+            if (!item.title || !item.thumbnailCopy || !item.strategy) {
+                console.error(`Blog Topics - 항목 ${index + 1}에 필수 속성이 누락됨:`, item);
+                throw new Error(`AI 응답의 ${index + 1}번째 항목에 필수 속성이 누락되었습니다.`);
+            }
+            return {
+                id: index + 1,
+                title: item.title,
+                thumbnailCopy: item.thumbnailCopy,
+                strategy: item.strategy,
+            };
+        });
 
     } catch (error) {
          if (error instanceof Error) {
@@ -963,7 +991,7 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -983,25 +1011,25 @@ ${topTitles}
 `.trim();
 
     const responseSchema = {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
             analysis: {
-                type: Type.OBJECT,
+                type: SchemaType.OBJECT,
                 properties: {
-                    structure: { type: Type.STRING, description: "상위 제목들의 구조적 특징 분석 (예: 숫자 활용, 질문형, 특정 패턴 등)" },
-                    characteristics: { type: Type.STRING, description: "독자의 어떤 감정이나 니즈를 자극하는지에 대한 분석 (예: 호기심 자극, 정보 제공 약속, 문제 해결 제시 등)" },
-                    commonKeywords: { type: Type.STRING, description: "공통적으로 발견되는 핵심 단어 및 그 이유 분석" }
+                    structure: { type: SchemaType.STRING, description: "상위 제목들의 구조적 특징 분석 (예: 숫자 활용, 질문형, 특정 패턴 등)" },
+                    characteristics: { type: SchemaType.STRING, description: "독자의 어떤 감정이나 니즈를 자극하는지에 대한 분석 (예: 호기심 자극, 정보 제공 약속, 문제 해결 제시 등)" },
+                    commonKeywords: { type: SchemaType.STRING, description: "공통적으로 발견되는 핵심 단어 및 그 이유 분석" }
                 },
                 required: ['structure', 'characteristics', 'commonKeywords']
             },
             suggestions: {
-                type: Type.ARRAY,
+                type: SchemaType.ARRAY,
                 items: {
-                    type: Type.OBJECT,
+                    type: SchemaType.OBJECT,
                     properties: {
-                        title: { type: Type.STRING, description: "새로운 블로그 제목" },
-                        thumbnailCopy: { type: Type.STRING, description: "썸네일에 사용할 짧고 강력한 문구" },
-                        strategy: { type: Type.STRING, description: "이 제목과 썸네일이 왜 효과적인지, 어떤 내용을 어떤 방식으로 담아야 상위 노출이 가능한지에 대한 구체적인 공략법" }
+                        title: { type: SchemaType.STRING, description: "새로운 블로그 제목" },
+                        thumbnailCopy: { type: SchemaType.STRING, description: "썸네일에 사용할 짧고 강력한 문구" },
+                        strategy: { type: SchemaType.STRING, description: "이 제목과 썸네일이 왜 효과적인지, 어떤 내용을 어떤 방식으로 담아야 상위 노출이 가능한지에 대한 구체적인 공략법" }
                     },
                     required: ['title', 'thumbnailCopy', 'strategy']
                 }
@@ -1015,7 +1043,7 @@ ${topTitles}
         const response = await result.response;
         const text = response.text();
 
-        const parsed = JSON.parse(text.trim());
+        const parsed = extractJsonFromText(text);
         
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
@@ -1044,7 +1072,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1077,24 +1105,24 @@ ${paaText}
 `.trim();
 
     const responseSchema = {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
             analysis: {
-                type: Type.OBJECT,
+                type: SchemaType.OBJECT,
                 properties: {
-                    userIntent: { type: Type.STRING, description: "데이터 기반으로 분석한 핵심 사용자 의도 및 콘텐츠 갭 요약 (1-2 문장)" },
-                    pillarPostSuggestion: { type: Type.STRING, description: "모든 주제와 콘텐츠 갭을 아우를 수 있는 필러 포스트 주제 제안" },
+                    userIntent: { type: SchemaType.STRING, description: "데이터 기반으로 분석한 핵심 사용자 의도 및 콘텐츠 갭 요약 (1-2 문장)" },
+                    pillarPostSuggestion: { type: SchemaType.STRING, description: "모든 주제와 콘텐츠 갭을 아우를 수 있는 필러 포스트 주제 제안" },
                 },
                 required: ['userIntent', 'pillarPostSuggestion']
             },
             suggestions: {
-                type: Type.ARRAY,
+                type: SchemaType.ARRAY,
                 items: {
-                    type: Type.OBJECT,
+                    type: SchemaType.OBJECT,
                     properties: {
-                        title: { type: Type.STRING, description: "콘텐츠 갭을 해결하는 새로운 블로그 제목" },
-                        thumbnailCopy: { type: Type.STRING, description: "썸네일에 사용할 짧고 강력한 문구" },
-                        strategy: { type: Type.STRING, description: "이 제목과 썸네일이 왜 효과적인지, 어떤 '콘텐츠 갭'을 어떻게 해결하는지에 대한 구체적인 공략법" }
+                        title: { type: SchemaType.STRING, description: "콘텐츠 갭을 해결하는 새로운 블로그 제목" },
+                        thumbnailCopy: { type: SchemaType.STRING, description: "썸네일에 사용할 짧고 강력한 문구" },
+                        strategy: { type: SchemaType.STRING, description: "이 제목과 썸네일이 왜 효과적인지, 어떤 '콘텐츠 갭'을 어떻게 해결하는지에 대한 구체적인 공략법" }
                     },
                     required: ['title', 'thumbnailCopy', 'strategy']
                 }
@@ -1108,7 +1136,7 @@ ${paaText}
         const response = await result.response;
         const text = response.text();
 
-        const parsed = JSON.parse(text.trim());
+        const parsed = extractJsonFromText(text);
         
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
@@ -1135,7 +1163,7 @@ ${paaText}
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1224,7 +1252,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1420,22 +1448,22 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
     prompt = prompt.replace(/{YYYY\+1}/g, String(currentYear + 1));
 
     const responseSchema = {
-        type: Type.ARRAY,
+        type: SchemaType.ARRAY,
         items: {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-                category: { type: Type.STRING },
+                category: { type: SchemaType.STRING },
                 suggestions: {
-                    type: Type.ARRAY,
+                    type: SchemaType.ARRAY,
                     items: {
-                        type: Type.OBJECT,
+                        type: SchemaType.OBJECT,
                         properties: {
-                            title: { type: Type.STRING },
+                            title: { type: SchemaType.STRING },
                             keywords: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING }
+                                type: SchemaType.ARRAY,
+                                items: { type: SchemaType.STRING }
                             },
-                            strategy: { type: Type.STRING }
+                            strategy: { type: SchemaType.STRING }
                         },
                         required: ['title', 'keywords', 'strategy']
                     }
@@ -1450,7 +1478,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         const response = await result.response;
         const text = response.text();
 
-        const parsed = JSON.parse(text.trim());
+        const parsed = extractJsonFromText(text);
 
         if (!Array.isArray(parsed) || parsed.some(p => !p.category || !Array.isArray(p.suggestions))) {
             throw new Error('AI 응답이 유효한 형식이 아닙니다.');
@@ -1522,7 +1550,7 @@ export const generateBlogPost = async (
     tone: 'friendly' | 'expert' | 'informative' = 'informative'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤',
@@ -1958,7 +1986,7 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     const prompt = `
     오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
