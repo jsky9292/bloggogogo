@@ -37,9 +37,37 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                     .blog-content blockquote { border-left: 3px solid #60a5fa; padding-left: 1em; margin: 1em 0; background: #1f2937; }
                     .blog-content code { background: #1f2937; padding: 0.2em 0.4em; border-radius: 3px; color: #10b981 !important; }
                     .blog-content pre { background: #1f2937; padding: 1em; border-radius: 5px; overflow-x: auto; }
-                    .blog-content table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-                    .blog-content th, .blog-content td { border: 1px solid #4b5563; padding: 0.5em; text-align: left; }
-                    .blog-content th { background: #1f2937; font-weight: bold; color: #60a5fa !important; }
+                    .blog-content table {
+                        border-collapse: collapse;
+                        width: 100%;
+                        margin: 1.5em 0;
+                        background: #111827 !important;
+                        border: 1px solid #374151;
+                    }
+                    .blog-content thead {
+                        background: #1f2937 !important;
+                    }
+                    .blog-content th, .blog-content td {
+                        border: 1px solid #374151 !important;
+                        padding: 0.75em !important;
+                        text-align: left;
+                        color: #e5e7eb !important;
+                    }
+                    .blog-content th {
+                        background: #1f2937 !important;
+                        font-weight: bold;
+                        color: #60a5fa !important;
+                        text-align: center;
+                    }
+                    .blog-content tbody tr:nth-child(even) {
+                        background: #1a1f2e !important;
+                    }
+                    .blog-content tbody tr:hover {
+                        background: #243447 !important;
+                    }
+                    .blog-content td {
+                        background: transparent !important;
+                    }
                     .blog-content a { color: #60a5fa !important; text-decoration: underline; }
                 </style>
                 ${content}
@@ -116,6 +144,15 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                         )}
                     </div>
                     <CopyButton textToCopy={viewMode === 'schema' && schemaMarkup ? schemaMarkup : content} />
+                    {platform === 'google' && schemaMarkup && (
+                        <button
+                            onClick={() => alert('Schema 사용법:\n\n1. Schema 탭을 클릭\n2. 복사 버튼으로 Schema 코드 복사\n3. 블로그 글의 HTML 편집 모드로 전환\n4. <head> 태그 안에 Schema 코드 붙여넣기\n\n또는 글 맨 아래에 붙여넣기도 가능합니다.\n\nSchema는 검색엔진이 콘텐츠를 더 잘 이해하도록 돕는 구조화된 데이터입니다.')}
+                            className="text-xs text-blue-400 hover:text-blue-300 underline"
+                            title="Schema 사용법 보기"
+                        >
+                            Schema란?
+                        </button>
+                    )}
                 </div>
             </div>
 
