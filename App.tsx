@@ -307,6 +307,43 @@ const App: React.FC = () => {
         }
     };
     
+    const handleGenerateBlogPostFromSerp = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
+        console.log('handleGenerateBlogPostFromSerp called with:', suggestion);
+        setSerpBlogPostLoading(true);
+        setSerpBlogPostError(null);
+        setSerpBlogPost(null);
+
+        try {
+            // Better keyword extraction including main keyword
+            const keywords = [mainKeyword];
+            const titleWords = suggestion.title.split(' ').filter(word =>
+                word.length > 2 && word !== mainKeyword &&
+                !['위한', '하는', '대한', '없는', '있는', '되는', '모든', '통한'].includes(word)
+            );
+            keywords.push(...titleWords.slice(0, 4));
+
+            console.log('Generated keywords:', keywords);
+
+            // Use title as the topic
+            const result = await generateBlogPost(
+                suggestion.title,
+                keywords,
+                suggestion.platform,
+                'informative'
+            );
+
+            setSerpBlogPost({ ...result, platform: suggestion.platform });
+        } catch (err) {
+            if (err instanceof Error) {
+                setSerpBlogPostError(err.message);
+            } else {
+                setSerpBlogPostError('블로그 글 생성 중 오류가 발생했습니다.');
+            }
+        } finally {
+            setSerpBlogPostLoading(false);
+        }
+    };
+
     const handleGenerateBlogPostFromPaa = async (paaItem: PaaItem & { platform: 'naver' | 'google' }) => {
         setPaaBlogPostLoading(true);
         setPaaBlogPostError(null);
@@ -1042,7 +1079,7 @@ const App: React.FC = () => {
                                                             
                                                             {serpStrategyLoading && <LoadingSpinner />}
                                                             {serpStrategyError && <ErrorMessage message={serpStrategyError} />}
-                                                            {serpStrategy && <SerpStrategyReport data={serpStrategy} onGenerateBlogPost={handleGenerateBlogPostFromStrategy} />}
+                                                            {serpStrategy && <SerpStrategyReport data={serpStrategy} onGenerateBlogPost={handleGenerateBlogPostFromSerp} />}
                                                             
                                                             {/* SERP 블로그 글쓰기 결과 - SERP 전략 바로 아래에 표시 */}
                                                             {serpBlogPostLoading && <LoadingSpinner />}
