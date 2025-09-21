@@ -887,13 +887,11 @@ const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTo
         required: ['title', 'thumbnailCopy', 'strategy']
       }
     };
-    
+
     try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-            }
-        });
 
         const parsed = JSON.parse(text.trim());
 
@@ -1016,8 +1014,6 @@ ${topTitles}
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-            }
-        });
 
         const parsed = JSON.parse(text.trim());
         
@@ -1111,8 +1107,6 @@ ${paaText}
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-            }
-        });
 
         const parsed = JSON.parse(text.trim());
         
@@ -1455,8 +1449,6 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-            }
-        });
 
         const parsed = JSON.parse(text.trim());
 
