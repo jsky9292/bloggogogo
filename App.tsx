@@ -1056,7 +1056,7 @@ const App: React.FC = () => {
                                 }}
                             >
                                 <span>📚</span>
-                                <span>Help & Docs</span>
+                                <span>기능사용법</span>
                             </button>
                         </div>
                     </header>
