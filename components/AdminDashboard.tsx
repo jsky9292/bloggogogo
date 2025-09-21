@@ -79,6 +79,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
         }
     };
 
+    const updateUserRole = async (uid: string, newRole: string) => {
+        try {
+            await updateDoc(doc(db, 'users', uid), {
+                role: newRole,
+                updatedAt: new Date()
+            });
+            fetchUsers();
+        } catch (error) {
+            console.error('Error updating user role:', error);
+        }
+    };
+
     const deleteUser = async (uid: string) => {
         if (window.confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
             try {
@@ -271,8 +283,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
                                                 <option value="enterprise">Enterprise</option>
                                             </select>
                                         </td>
-                                        <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
-                                            {user.role === 'admin' ? '관리자' : '사용자'}
+                                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                                            <select
+                                                value={user.role}
+                                                onChange={(e) => updateUserRole(user.uid, e.target.value)}
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    border: '1px solid #d1d5db',
+                                                    fontSize: '0.875rem',
+                                                    backgroundColor: user.role === 'admin' ? '#fef3c7' : 'white'
+                                                }}
+                                            >
+                                                <option value="user">사용자</option>
+                                                <option value="admin">관리자</option>
+                                            </select>
                                         </td>
                                         <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
                                             {user.usage?.searches || 0}
