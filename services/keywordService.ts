@@ -279,35 +279,64 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     const response = await result.response;
     const text = response.text();
 
-    console.log('AI Response text:', text);
+    console.log('Related Keywords - AI 원본 응답:', text);
 
     if (!text) {
         throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
     }
 
-    const keywords = extractJsonFromText(text);
+    let keywords;
+    try {
+        // Try direct JSON parsing first (for structured output)
+        keywords = JSON.parse(text);
+        console.log('Related Keywords - 직접 JSON 파싱 성공');
+    } catch (jsonError) {
+        console.log('Related Keywords - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+        // Fallback to extractJsonFromText for markdown code blocks
+        keywords = extractJsonFromText(text);
+    }
+
+    console.log('Related Keywords - 파싱된 데이터:', keywords);
+
+    // Enhanced validation but keep it simple
+    if (!keywords || typeof keywords !== 'object') {
+        console.error('Related Keywords - 객체가 아님:', keywords);
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
+
+    if (!keywords.related_searches || !keywords.people_also_ask) {
+        console.error('Related Keywords - 필수 속성 누락:', keywords);
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
+
+    if (!Array.isArray(keywords.related_searches) || !Array.isArray(keywords.people_also_ask)) {
+        console.error('Related Keywords - 배열이 아님:', {
+            related_searches: keywords.related_searches,
+            people_also_ask: keywords.people_also_ask
+        });
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
 
     // Type validation and cleaning
-    if (keywords && Array.isArray(keywords.related_searches) && Array.isArray(keywords.people_also_ask)) {
-       const citationRegex = /\[\d+(, ?\d+)*\]/g;
+    const citationRegex = /\[\d+(, ?\d+)*\]/g;
 
-       const cleanedPaas = keywords.people_also_ask.map((paa: PaaItem) => ({
-           question: (paa.question || '').replace(citationRegex, '').trim(),
-           answer: (paa.answer || '').replace(citationRegex, '').trim(),
-           content_gap_analysis: (paa.content_gap_analysis || '').replace(citationRegex, '').trim(),
-       })).slice(0, 5);
+    const cleanedPaas = keywords.people_also_ask.map((paa: any, index: number) => {
+        // Provide fallback values if properties are missing
+        return {
+            question: (paa?.question || `질문 ${index + 1}`).replace(citationRegex, '').trim(),
+            answer: (paa?.answer || '답변을 찾을 수 없습니다.').replace(citationRegex, '').trim(),
+            content_gap_analysis: (paa?.content_gap_analysis || '분석 정보가 없습니다.').replace(citationRegex, '').trim(),
+        };
+    }).slice(0, 5);
 
-       const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
-           (search || '').replace(citationRegex, '').trim()
-       );
+    const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
+        (search || '').replace(citationRegex, '').trim()
+    );
 
-       return {
-           related_searches: cleanedRelatedSearches,
-           people_also_ask: cleanedPaas,
-       };
-    } else {
-       throw new Error("API 응답이 예상된 형식이 아닙니다.");
-    }
+    return {
+        related_searches: cleanedRelatedSearches,
+        people_also_ask: cleanedPaas,
+    };
 
   } catch (error) {
     console.error("AI 연관검색어 분석 중 오류 발생:", error);
@@ -1077,7 +1106,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
     const relatedSearchesText = serpData.related_searches.length > 0 ? serpData.related_searches.join(', ') : 'N/A';
-    const paaText = serpData.people_also_ask.length > 0 
+    const paaText = serpData.people_also_ask.length > 0
         ? serpData.people_also_ask.map(p => `
           - 질문: ${p.question}
           - 콘텐츠 갭 (공략 포인트): ${p.content_gap_analysis}`).join('')
@@ -1132,18 +1161,47 @@ ${paaText}
     };
 
     try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema
+            }
+        });
         const response = await result.response;
         const text = response.text();
 
-        const parsed = extractJsonFromText(text);
-        
+        console.log('SERP Strategy - AI 원본 응답:', text);
+
+        let parsed;
+        try {
+            // Try direct JSON parsing first (for structured output)
+            parsed = JSON.parse(text);
+            console.log('SERP Strategy - 직접 JSON 파싱 성공');
+        } catch (jsonError) {
+            console.log('SERP Strategy - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+            // Fallback to extractJsonFromText for markdown code blocks
+            parsed = extractJsonFromText(text);
+        }
+
+        console.log('SERP Strategy - 파싱된 데이터:', parsed);
+
+        // Validate parsed data structure
+        if (!parsed || typeof parsed !== 'object') {
+            throw new Error('AI 응답이 객체 형식이 아닙니다.');
+        }
+
+        if (!parsed.analysis || typeof parsed.analysis !== 'object') {
+            throw new Error('AI 응답에 analysis 객체가 없습니다.');
+        }
+
+        if (!Array.isArray(parsed.suggestions)) {
+            console.error('SERP Strategy - suggestions가 배열이 아님:', parsed.suggestions);
+            throw new Error('AI 응답의 suggestions가 배열 형식이 아닙니다.');
+        }
+
         parsed.suggestions = parsed.suggestions.map((item: any, index: number) => ({ ...item, id: index + 1 }));
 
-        if (!parsed.analysis || !Array.isArray(parsed.suggestions)) {
-             throw new Error('AI 응답이 유효한 형식이 아닙니다.');
-        }
-        
         return parsed as SerpStrategyReportData;
 
     } catch (error) {
