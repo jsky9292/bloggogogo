@@ -21,7 +21,6 @@ import CurrentStatus from './components/CurrentStatus';
 import ApiKeySettings from './components/ApiKeySettings';
 import ApiKeyStatus from './components/ApiKeyStatus';
 import BlogPostDisplay from './components/BlogPostDisplay';
-import ModeToggle from './components/ModeToggle';
 import AuthModal from './components/AuthModal';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -1368,8 +1367,6 @@ const App: React.FC = () => {
 
             {isHelpModalOpen && <HelpModal onClose={() => setIsHelpModalOpen(false)} />}
             
-            {/* 모드 전환 버튼 */}
-            <ModeToggle />
             
             {/* 관리자 대시보드 모달 */}
             {currentUser && currentUser.role === 'admin' && (
