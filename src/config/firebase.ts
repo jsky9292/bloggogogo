@@ -81,12 +81,15 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
       return profile;
     } else {
       // 프로필이 없으면 생성 (기존 사용자의 경우)
+      // 관리자 계정 체크
+      const isAdmin = email === 'admin@keywordinsight.com';
+
       const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || email,
-        name: user.displayName || email.split('@')[0],
-        plan: 'free',
-        role: 'user',
+        name: isAdmin ? '관리자' : (user.displayName || email.split('@')[0]),
+        plan: isAdmin ? 'enterprise' : 'free',
+        role: isAdmin ? 'admin' : 'user',
         createdAt: new Date(),
         usage: {
           searches: 0,
@@ -207,5 +210,25 @@ export const isAdmin = async (uid: string): Promise<boolean> => {
   } catch (error) {
     console.error('Admin check error:', error);
     return false;
+  }
+};
+
+// 관리자 계정 업데이트 함수 (관리자 계정이 FREE로 표시되는 문제 수정)
+export const updateAdminAccount = async (uid: string, email: string): Promise<void> => {
+  try {
+    if (email === 'admin@keywordinsight.com') {
+      await updateUserProfile(uid, {
+        name: '관리자',
+        plan: 'enterprise',
+        role: 'admin',
+        usage: {
+          searches: 0,
+          lastReset: new Date()
+        }
+      });
+      console.log('Admin account updated successfully');
+    }
+  } catch (error) {
+    console.error('Error updating admin account:', error);
   }
 };

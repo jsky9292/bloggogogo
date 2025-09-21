@@ -29,6 +29,7 @@ import LandingPage from './components/LandingPage';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost } from './services/keywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem } from './types';
 import { config } from './src/config/appConfig';
+import { updateAdminAccount } from './src/config/firebase';
 
 const App: React.FC = () => {
     const { results, loading, error, search, initialLoad, setResults, setError, setInitialLoad, setLoading } = useSearch();
@@ -94,7 +95,19 @@ const App: React.FC = () => {
 
     useEffect(() => {
         console.log('currentUser changed:', currentUser);
-    }, [currentUser]);
+        // 관리자 계정인 경우 자동으로 Enterprise 플랜으로 업데이트
+        if (currentUser && currentUser.email === 'admin@keywordinsight.com') {
+            updateAdminAccount(currentUser.uid, currentUser.email).then(() => {
+                // 업데이트 후 현재 사용자 정보 갱신
+                setCurrentUser({
+                    ...currentUser,
+                    name: '관리자',
+                    plan: 'enterprise',
+                    role: 'admin'
+                });
+            });
+        }
+    }, [currentUser?.email]);
 
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
