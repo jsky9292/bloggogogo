@@ -279,20 +279,31 @@ const App: React.FC = () => {
         platform: 'naver' | 'google'
     }) => {
         console.log('handleGenerateBlogPostFromStrategy called with:', suggestion);
+        console.log('Current mainKeyword:', mainKeyword);
+        console.log('Current keyword:', keyword);
+
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
 
         try {
+            // mainKeyword가 없으면 keyword 사용
+            const searchKeyword = mainKeyword || keyword;
+
+            if (!searchKeyword) {
+                throw new Error('키워드를 먼저 입력해주세요.');
+            }
+
             // Better keyword extraction including main keyword
-            const keywords = [mainKeyword];
+            const keywords = [searchKeyword];
             const titleWords = suggestion.title.split(' ').filter(word =>
-                word.length > 2 && word !== mainKeyword &&
+                word.length > 2 && word !== searchKeyword &&
                 !['위한', '하는', '대한', '없는', '있는', '되는', '모든', '통한'].includes(word)
             );
             keywords.push(...titleWords.slice(0, 4));
 
             console.log('Generated keywords:', keywords);
+            console.log('Platform:', suggestion.platform);
 
             // Use title as the topic
             const result = await generateBlogPost(
@@ -302,8 +313,14 @@ const App: React.FC = () => {
                 'informative'
             );
 
-            setBlogPost({ ...result, platform: suggestion.platform });
+            if (result) {
+                setBlogPost({ ...result, platform: suggestion.platform });
+                console.log('Blog post generated successfully');
+            } else {
+                throw new Error('블로그 글 생성 결과가 없습니다.');
+            }
         } catch (err) {
+            console.error('Error in handleGenerateBlogPostFromStrategy:', err);
             if (err instanceof Error) {
                 setBlogPostError(err.message);
             } else {
