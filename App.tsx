@@ -102,6 +102,7 @@ const App: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
     const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+    const [adminRefreshTrigger, setAdminRefreshTrigger] = useState(0);
     const [currentUser, setCurrentUser] = useState<any>(() => {
         const saved = localStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
@@ -414,6 +415,12 @@ const App: React.FC = () => {
         }
     };
 
+    // API 키 업데이트 시 관리자 대시보드 새로고침
+    const handleApiKeyUpdate = (apiKey: string) => {
+        console.log('API 키가 업데이트되었습니다:', apiKey ? '✓' : '✗');
+        setAdminRefreshTrigger(prev => prev + 1);
+    };
+
     const handleGenerateBlogPostFromSerp = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
         console.log('handleGenerateBlogPostFromSerp called with:', suggestion);
         setSerpBlogPostLoading(true);
@@ -720,7 +727,7 @@ const App: React.FC = () => {
                         {config.mode === 'local' ? (
                             <div>
                                 <ApiKeyStatus />
-                                <ApiKeySettings />
+                                <ApiKeySettings onApiKeyUpdate={handleApiKeyUpdate} />
                             </div>
                         ) : (
                             <div>
@@ -1363,6 +1370,7 @@ const App: React.FC = () => {
                 <AdminDashboard
                     isOpen={isAdminDashboardOpen}
                     onClose={() => setIsAdminDashboardOpen(false)}
+                    onRefresh={adminRefreshTrigger}
                 />
             )}
 

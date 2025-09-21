@@ -19,9 +19,10 @@ interface User {
 interface AdminDashboardProps {
     isOpen: boolean;
     onClose: () => void;
+    onRefresh?: number;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefresh }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
@@ -38,6 +39,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
             fetchUsers();
         }
     }, [isOpen]);
+
+    // onRefresh prop이 변경되면 데이터 다시 가져오기
+    useEffect(() => {
+        if (isOpen && onRefresh !== undefined) {
+            fetchUsers();
+        }
+    }, [onRefresh, isOpen]);
 
     const fetchUsers = async () => {
         try {
