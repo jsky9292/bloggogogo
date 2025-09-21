@@ -465,12 +465,25 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
             // 찾은 링크 검증
             if (titleLink) {
                 const text = titleLink.textContent?.trim() || '';
+                const href = (titleLink as HTMLAnchorElement).href || '';
+
+                // URL이 실제 블로그 포스트인지 확인 (블로그 메인 페이지가 아닌)
+                const isMainPage = href.match(/blog\.naver\.com\/[^\/]+\/?$/);
+                const hasPostId = href.match(/blog\.naver\.com\/[^\/]+\/\d+/);
+
                 // 블로그 대문이나 블로그명이 아닌 실제 포스트 제목인지 확인
-                if (text.length > 15 &&
+                if (text.length > 10 &&
                     text.length < 150 &&
+                    !isMainPage &&  // 블로그 메인 페이지 URL 제외
+                    hasPostId &&    // 포스트 ID가 있는 URL만 포함
                     !text.includes('님의 블로그') &&
+                    !text.includes('님의 이글루스') &&
                     !text.includes('네이버 블로그') &&
                     !text.match(/^[가-힣]+님?$/) && // "홍길동" 같은 이름만 있는 경우 제외
+                    !text.match(/^https?:\/\//) &&   // URL로 시작하는 텍스트 제외
+                    !text.match(/^blog\./) &&         // blog.로 시작하는 텍스트 제외
+                    !text.includes('.com') &&         // 도메인이 포함된 텍스트 제외
+                    !text.includes('.co.kr') &&       // 도메인이 포함된 텍스트 제외
                     !text.includes('#') &&
                     !text.includes('...')) {
                     titleElements.push(titleLink);
@@ -507,30 +520,41 @@ export const fetchNaverBlogPosts = async (keyword: string): Promise<BlogPostData
         const candidates = allBlogLinks
             .map(link => {
                 const text = link.textContent?.trim() || '';
+                const href = (link as HTMLAnchorElement).href || '';
                 const parent = link.parentElement;
                 const grandParent = parent?.parentElement;
+
+                // URL 검증
+                const isMainPage = href.match(/blog\.naver\.com\/[^\/]+\/?$/);
+                const hasPostId = href.match(/blog\.naver\.com\/[^\/]+\/\d+/);
 
                 // 점수 기반 평가
                 let score = 0;
 
                 // 긍정 점수
-                if (text.length > 20 && text.length < 100) score += 2;
+                if (text.length > 15 && text.length < 120) score += 2;
+                if (hasPostId) score += 5;  // 포스트 ID가 있으면 높은 점수
                 if (link.className.includes('tit')) score += 3;
                 if (parent?.className.includes('tit')) score += 2;
                 if (!text.includes('님')) score += 1;
                 if (!text.includes('...')) score += 1;
+                if (text.includes('?') || text.includes('!')) score += 1; // 질문이나 느낌표가 있으면 제목일 가능성 높음
 
                 // 부정 점수
+                if (isMainPage) score -= 10;  // 블로그 메인 페이지면 낮은 점수
                 if (link.className.includes('user')) score -= 5;
                 if (link.className.includes('sub')) score -= 3;
                 if (parent?.className.includes('user')) score -= 5;
                 if (parent?.className.includes('sub')) score -= 3;
                 if (text.match(/^[가-힣]{2,5}$/)) score -= 10; // 짧은 이름
                 if (text.includes('블로그')) score -= 3;
+                if (text.match(/^https?:\/\//)) score -= 10; // URL로 시작
+                if (text.includes('.com') || text.includes('.co.kr')) score -= 10; // 도메인 포함
+                if (text.match(/^blog\./)) score -= 10; // blog.로 시작
 
-                return { link, text, score };
+                return { link, text, score, href };
             })
-            .filter(item => item.score > 0)
+            .filter(item => item.score > 0 && item.href.includes('/') && !item.href.endsWith('.com/'))
             .sort((a, b) => b.score - a.score)
             .slice(0, 10);
 

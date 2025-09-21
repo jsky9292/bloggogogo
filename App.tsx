@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearch } from './hooks/useKeywordSearch';
 import KeywordInputForm from './components/KeywordInputForm';
 import ResultsTable from './components/ResultsTable';
@@ -86,6 +86,15 @@ const App: React.FC = () => {
         const saved = localStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
     });
+
+    // 대시보드 상태 디버깅용 useEffect
+    useEffect(() => {
+        console.log('isUserDashboardOpen changed:', isUserDashboardOpen);
+    }, [isUserDashboardOpen]);
+
+    useEffect(() => {
+        console.log('currentUser changed:', currentUser);
+    }, [currentUser]);
 
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
@@ -208,6 +217,7 @@ const App: React.FC = () => {
     };
 
     const handleGenerateBlogPost = async (topic: GeneratedTopic & { platform: 'naver' | 'google' }) => {
+        console.log('handleGenerateBlogPost called with:', topic);
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
@@ -215,8 +225,8 @@ const App: React.FC = () => {
         try {
             // Better keyword extraction including main keyword
             const keywords = [mainKeyword];
-            const titleWords = topic.title.split(' ').filter(word => 
-                word.length > 2 && word !== mainKeyword && 
+            const titleWords = topic.title.split(' ').filter(word =>
+                word.length > 2 && word !== mainKeyword &&
                 !['위한', '하는', '대한', '없는', '있는', '되는'].includes(word)
             );
             keywords.push(...titleWords.slice(0, 4));
@@ -807,7 +817,12 @@ const App: React.FC = () => {
                                         fontWeight: '500',
                                         cursor: 'pointer'
                                     }}
-                                    onClick={() => setIsUserDashboardOpen(true)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('User name clicked');
+                                        setIsUserDashboardOpen(true);
+                                    }}
                                     >
                                         {currentUser.name || currentUser.email}
                                     </span>
@@ -845,7 +860,12 @@ const App: React.FC = () => {
                                         </button>
                                     )}
                                     <button
-                                        onClick={() => setIsUserDashboardOpen(true)}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            console.log('Dashboard button clicked');
+                                            setIsUserDashboardOpen(true);
+                                        }}
                                         style={{
                                             padding: '0.25rem 0.5rem',
                                             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
@@ -1135,6 +1155,18 @@ const App: React.FC = () => {
                         setIsUserDashboardOpen(false);
                         // 결제 페이지로 이동하는 로직 추가 예정
                         alert('결제 시스템 준비 중입니다.');
+                    }}
+                />
+            )}
+
+            {/* 인증 모달 */}
+            {isAuthModalOpen && (
+                <AuthModal
+                    isOpen={isAuthModalOpen}
+                    onClose={() => setIsAuthModalOpen(false)}
+                    onSuccess={(user) => {
+                        setCurrentUser(user);
+                        setIsAuthModalOpen(false);
                     }}
                 />
             )}
