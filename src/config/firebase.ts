@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 // Firebase 설정 - 환경 변수에서 가져오기
@@ -117,6 +117,50 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
     }
   } catch (error: any) {
     throw new Error(error.message || '로그인 중 오류가 발생했습니다.');
+  }
+};
+
+// Google 로그인 함수
+export const loginWithGoogle = async (): Promise<UserProfile> => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+
+    // Firestore에서 사용자 프로필 확인
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+    if (userDoc.exists()) {
+      const profile = userDoc.data() as UserProfile;
+
+      // API 키가 있으면 localStorage에 저장
+      if (profile.apiKey) {
+        localStorage.setItem('gemini_api_key', profile.apiKey);
+      }
+
+      return profile;
+    } else {
+      // 신규 사용자 프로필 생성
+      const userProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        name: user.displayName || user.email?.split('@')[0] || 'Google 사용자',
+        plan: 'free',
+        role: 'user',
+        createdAt: new Date(),
+        usage: {
+          searches: 0,
+          lastReset: new Date()
+        }
+      };
+
+      await setDoc(doc(db, 'users', user.uid), userProfile);
+      return userProfile;
+    }
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('로그인이 취소되었습니다.');
+    }
+    throw new Error(error.message || 'Google 로그인 중 오류가 발생했습니다.');
   }
 };
 
