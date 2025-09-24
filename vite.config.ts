@@ -4,8 +4,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    // 커스텀 도메인을 사용하는 경우 base를 '/'로 설정
+    const isCustomDomain = process.env.CUSTOM_DOMAIN === 'true';
     return {
-      base: '/bloggogogo/',
+      base: isCustomDomain ? '/' : '/bloggogogo/',
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY),
