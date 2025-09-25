@@ -418,12 +418,12 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                       padding: '16px 24px',
                       fontSize: '0.875rem',
                       color: '#111827'
-                    }}>일일 검색 횟수</td>
+                    }}>구독 상태</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
                       textAlign: 'center'
-                    }}>10회</td>
+                    }}>14일 무료 체험</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',

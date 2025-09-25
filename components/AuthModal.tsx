@@ -121,7 +121,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                             <p className="text-sm text-blue-800">
                                 <strong>처음 방문하셨나요?</strong><br />
                                 회원가입 후 무료로 서비스를 이용해보세요!<br />
-                                매일 10회 무료 검색이 제공됩니다.
+                                <span className="font-semibold">🎁 14일 무료 체험</span>이 제공됩니다.
                             </p>
                         </div>
                     )}
@@ -221,11 +221,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
 
                     {mode === 'register' && (
                         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-2">무료 플랜 혜택:</h3>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-2">🎁 14일 무료 체험 혜택:</h3>
                             <ul className="text-xs text-gray-600 space-y-1">
-                                <li>• 일일 10회 키워드 분석</li>
-                                <li>• 기본 경쟁력 분석</li>
-                                <li>• 검색 기록 저장</li>
+                                <li>• 14일 동안 무제한 키워드 분석</li>
+                                <li>• 모든 프리미엄 기능 사용 가능</li>
+                                <li>• AI 블로그 자동 생성</li>
+                                <li>• 실시간 트렌드 분석</li>
                             </ul>
                         </div>
                     )}

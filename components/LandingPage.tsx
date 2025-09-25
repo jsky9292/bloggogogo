@@ -296,7 +296,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ color: '#10b981' }}>✓</span>
               <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.95rem' }}>
-                매일 10회 무료
+                14일 무료 체험
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -503,7 +503,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
               {
                 name: 'Starter',
                 price: '무료',
-                features: ['일일 10회 검색', '기본 경쟁력 분석', '검색 기록 30일'],
+                features: ['14일 무료 체험', '무제한 검색', '모든 프리미엄 기능'],
                 cta: '무료 시작',
                 popular: false
               },

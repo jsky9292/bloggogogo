@@ -28,6 +28,7 @@ export interface UserProfile {
   createdAt: Date;
   subscriptionStart?: Date;
   subscriptionEnd?: Date;
+  subscriptionDays?: number; // 구독 일수 추가
   apiKey?: string;
   usage?: {
     searches: number;
@@ -41,6 +42,11 @@ export const registerUser = async (email: string, password: string, name: string
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    // 14일 무료 체험 기간 설정
+    const now = new Date();
+    const freeEndDate = new Date();
+    freeEndDate.setDate(freeEndDate.getDate() + 14);
+
     // Firestore에 사용자 프로필 생성
     const userProfile: UserProfile = {
       uid: user.uid,
@@ -48,10 +54,13 @@ export const registerUser = async (email: string, password: string, name: string
       name: name,
       plan: 'free',
       role: 'user',
-      createdAt: new Date(),
+      createdAt: now,
+      subscriptionStart: now,
+      subscriptionEnd: freeEndDate,
+      subscriptionDays: 14,
       usage: {
         searches: 0,
-        lastReset: new Date()
+        lastReset: now
       }
     };
 
@@ -139,17 +148,24 @@ export const loginWithGoogle = async (): Promise<UserProfile> => {
 
       return profile;
     } else {
-      // 신규 사용자 프로필 생성
+      // 신규 사용자 프로필 생성 (14일 무료 체험)
+      const now = new Date();
+      const freeEndDate = new Date();
+      freeEndDate.setDate(freeEndDate.getDate() + 14);
+
       const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
         name: user.displayName || user.email?.split('@')[0] || 'Google 사용자',
         plan: 'free',
         role: 'user',
-        createdAt: new Date(),
+        createdAt: now,
+        subscriptionStart: now,
+        subscriptionEnd: freeEndDate,
+        subscriptionDays: 14,
         usage: {
           searches: 0,
-          lastReset: new Date()
+          lastReset: now
         }
       };
 
@@ -206,33 +222,49 @@ export const checkUsageLimit = async (uid: string): Promise<boolean> => {
 
     const userData = userDoc.data() as UserProfile;
     const plan = userData.plan;
-    const usage = userData.usage?.searches || 0;
-    const lastReset = userData.usage?.lastReset || new Date();
 
-    // 일일 제한 체크
-    const now = new Date();
-    const daysSinceReset = (now.getTime() - new Date(lastReset).getTime()) / (1000 * 60 * 60 * 24);
+    // Free 플랜이면서 14일 무료 체험 기간 중인지 체크
+    if (plan === 'free' && userData.subscriptionEnd) {
+      const now = new Date();
+      const endDate = new Date(userData.subscriptionEnd);
 
-    // 하루가 지났으면 리셋
-    if (daysSinceReset >= 1) {
-      await updateUserProfile(uid, {
-        usage: {
-          searches: 0,
-          lastReset: now
-        }
-      });
+      // 14일 무료 체험 기간 중이면 무제한 사용
+      if (now <= endDate) {
+        return true;
+      }
+
+      // 무료 체험 기간이 끝났으면 사용 불가
+      return false;
+    }
+
+    // 유료 플랜들은 기간 체크
+    if (userData.subscriptionEnd) {
+      const now = new Date();
+      const endDate = new Date(userData.subscriptionEnd);
+
+      // 구독이 만료되면 false 반환
+      if (now > endDate) {
+        // 구독 만료시 free로 변경
+        await updateUserProfile(uid, {
+          plan: 'free',
+          subscriptionEnd: undefined,
+          subscriptionDays: undefined
+        });
+        return false;
+      }
+    }
+
+    // Enterprise는 항상 무제한
+    if (plan === 'enterprise') {
       return true;
     }
 
-    // 플랜별 일일 제한
-    const limits: Record<string, number> = {
-      free: 10,
-      basic: 50,
-      pro: 200,
-      enterprise: Infinity
-    };
+    // Basic, Pro는 구독 기간 내에서 무제한
+    if (plan === 'basic' || plan === 'pro') {
+      return true;
+    }
 
-    return usage < limits[plan];
+    return false;
   } catch (error) {
     console.error('Usage check error:', error);
     return false;
@@ -290,5 +322,61 @@ export const updateAdminAccount = async (uid: string, email: string): Promise<vo
     }
   } catch (error) {
     console.error('Error updating admin account:', error);
+  }
+};
+
+// 사용자 구독 기간 업데이트 함수
+export const updateUserSubscription = async (uid: string, plan: string, days: number): Promise<void> => {
+  try {
+    const now = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + days);
+
+    await updateUserProfile(uid, {
+      plan: plan as 'free' | 'basic' | 'pro' | 'enterprise',
+      subscriptionStart: now,
+      subscriptionEnd: endDate,
+      subscriptionDays: days
+    });
+
+    console.log(`Subscription updated: ${plan} for ${days} days`);
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    throw error;
+  }
+};
+
+// 구독 만료 체크 함수
+export const checkSubscriptionExpiry = async (uid: string): Promise<boolean> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) return false;
+
+    const userData = userDoc.data() as UserProfile;
+
+    // Enterprise는 무제한
+    if (userData.plan === 'enterprise') return true;
+
+    // 구독 종료일이 설정되어 있지 않으면 false
+    if (!userData.subscriptionEnd) return false;
+
+    // 현재 시간과 비교
+    const now = new Date();
+    const endDate = new Date(userData.subscriptionEnd);
+
+    // 만료되면 free로 변경
+    if (now > endDate) {
+      await updateUserProfile(uid, {
+        plan: 'free',
+        subscriptionEnd: undefined,
+        subscriptionDays: undefined
+      });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Subscription check error:', error);
+    return false;
   }
 };

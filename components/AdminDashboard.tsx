@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../src/config/firebase';
+import { db, updateUserSubscription } from '../src/config/firebase';
 
 interface User {
     uid: string;
@@ -10,6 +10,9 @@ interface User {
     plan: string;
     role: string;
     createdAt: any;
+    subscriptionStart?: any;
+    subscriptionEnd?: any;
+    subscriptionDays?: number;
     usage?: {
         searches: number;
         lastReset: any;
@@ -26,6 +29,10 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefresh }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedUser, setSelectedUser] = useState<string | null>(null);
+    const [subscriptionDays, setSubscriptionDays] = useState<number>(14);
+    const [selectedPlan, setSelectedPlan] = useState<string>('basic');
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -154,6 +161,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                 console.error('Error deleting user:', error);
             }
         }
+    };
+
+    const handleSubscriptionUpdate = async () => {
+        if (!selectedUser) return;
+
+        try {
+            await updateUserSubscription(selectedUser, selectedPlan, subscriptionDays);
+            alert(`구독이 업데이트되었습니다: ${selectedPlan} 플랜 ${subscriptionDays}일`);
+            setShowSubscriptionModal(false);
+            setSelectedUser(null);
+            fetchUsers(); // 목록 새로고침
+        } catch (error) {
+            console.error('Error updating subscription:', error);
+            alert('구독 업데이트 중 오류가 발생했습니다.');
+        }
+    };
+
+    const openSubscriptionModal = (uid: string, currentPlan: string) => {
+        setSelectedUser(uid);
+        setSelectedPlan(currentPlan);
+        setShowSubscriptionModal(true);
     };
 
     const resetUserUsage = async (uid: string) => {
@@ -357,10 +385,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                     <th style={{ padding: '10px', textAlign: 'left', color: '#374151' }}>이메일</th>
                                     <th style={{ padding: '10px', textAlign: 'left', color: '#374151' }}>이름</th>
                                     <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>플랜</th>
+                                    <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>구독만료</th>
                                     <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>역할</th>
                                     <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>검색수</th>
                                     <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>API키</th>
-                                    <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>가입일</th>
                                     <th style={{ padding: '10px', textAlign: 'center', color: '#374151' }}>액션</th>
                                 </tr>
                             </thead>
@@ -386,6 +414,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                                 <option value="enterprise">Enterprise</option>
                                             </select>
                                         </td>
+                                        <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
+                                            {user.subscriptionEnd ? (
+                                                <div>
+                                                    {new Date(user.subscriptionEnd).toLocaleDateString('ko-KR')}
+                                                    <br />
+                                                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                                        ({Math.ceil((new Date(user.subscriptionEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}일 남음)
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                user.plan === 'enterprise' ? '무제한' : '미설정'
+                                            )}
+                                        </td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>
                                             <select
                                                 value={user.role}
@@ -408,10 +449,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                         <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
                                             {user.apiKey ? '✓' : '✗'}
                                         </td>
-                                        <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
-                                            {user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString() : '-'}
-                                        </td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => openSubscriptionModal(user.uid, user.plan)}
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    marginRight: '4px',
+                                                    backgroundColor: '#10b981',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.75rem',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                구독설정
+                                            </button>
                                             <button
                                                 onClick={() => resetUserUsage(user.uid)}
                                                 style={{
@@ -450,6 +503,106 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                         </table>
                     )}
                 </div>
+
+                {/* 구독 설정 모달 */}
+                {showSubscriptionModal && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 1100
+                    }}>
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: '8px',
+                            padding: '24px',
+                            width: '400px',
+                            maxWidth: '90%'
+                        }}>
+                            <h3 style={{ marginBottom: '20px', fontSize: '1.25rem', fontWeight: 'bold' }}>
+                                구독 기간 설정
+                            </h3>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                                    플랜 선택
+                                </label>
+                                <select
+                                    value={selectedPlan}
+                                    onChange={(e) => setSelectedPlan(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px'
+                                    }}
+                                >
+                                    <option value="free">Free</option>
+                                    <option value="basic">Basic</option>
+                                    <option value="pro">Pro</option>
+                                    <option value="enterprise">Enterprise</option>
+                                </select>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                                    구독 일수
+                                </label>
+                                <select
+                                    value={subscriptionDays}
+                                    onChange={(e) => setSubscriptionDays(Number(e.target.value))}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px'
+                                    }}
+                                >
+                                    <option value={14}>14일 (무료 체험)</option>
+                                    <option value={30}>30일 (1개월)</option>
+                                    <option value={90}>90일 (3개월)</option>
+                                    <option value={180}>180일 (6개월)</option>
+                                    <option value={365}>365일 (1년)</option>
+                                </select>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setShowSubscriptionModal(false)}
+                                    style={{
+                                        padding: '8px 16px',
+                                        backgroundColor: '#e5e7eb',
+                                        color: '#374151',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleSubscriptionUpdate}
+                                    style={{
+                                        padding: '8px 16px',
+                                        backgroundColor: '#10b981',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    설정
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
