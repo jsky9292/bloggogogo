@@ -33,6 +33,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
     const [subscriptionDays, setSubscriptionDays] = useState<number>(14);
     const [selectedPlan, setSelectedPlan] = useState<string>('basic');
     const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -69,10 +72,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
             const usersSnapshot = await getDocs(collection(db, 'users'));
             console.log('usersSnapshot 받음:', usersSnapshot);
             console.log('문서 개수:', usersSnapshot.docs.length);
-            const usersList = usersSnapshot.docs.map(doc => ({
-                uid: doc.id,
-                ...doc.data()
-            } as User));
+            const usersList = usersSnapshot.docs.map(doc => {
+                const userData = doc.data();
+
+                // 이전 가입자에게 구독 정보가 없으면 14일 무료 체험 자동 설정
+                if (!userData.subscriptionEnd && userData.plan === 'free') {
+                    const createdAt = userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt);
+                    const endDate = new Date(createdAt);
+                    endDate.setDate(endDate.getDate() + 14);
+
+                    // Firebase에 업데이트
+                    updateDoc(doc.ref, {
+                        subscriptionStart: createdAt,
+                        subscriptionEnd: endDate,
+                        subscriptionDays: 14
+                    }).catch(err => console.error('Error updating legacy user:', err));
+
+                    userData.subscriptionStart = createdAt;
+                    userData.subscriptionEnd = endDate;
+                    userData.subscriptionDays = 14;
+                }
+
+                return {
+                    uid: doc.id,
+                    ...userData
+                } as User;
+            });
             console.log('usersList 생성됨:', usersList);
 
             // 현재 로그인한 사용자 정보 가져오기
@@ -119,7 +144,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                 totalSearches: usersList.reduce((acc, u) => acc + (u.usage?.searches || 0), 0)
             };
 
-            setUsers(usersList);
+            // 가입일 순으로 정렬 (최신순)
+            const sortedUsers = usersList.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                return sortOrder === 'desc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+            });
+
+            setUsers(sortedUsers);
+            setFilteredUsers(sortedUsers);
             setStats(stats);
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -194,6 +227,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
         } catch (error) {
             console.error('Error resetting user usage:', error);
         }
+    };
+
+    // 검색 필터링 효과
+    useEffect(() => {
+        if (searchQuery === '') {
+            setFilteredUsers(users);
+        } else {
+            const filtered = users.filter(user => {
+                const name = user.name?.toLowerCase() || '';
+                const email = user.email?.toLowerCase() || '';
+                const query = searchQuery.toLowerCase();
+                return name.includes(query) || email.includes(query);
+            });
+            setFilteredUsers(filtered);
+        }
+    }, [searchQuery, users]);
+
+    // 정렬 토글
+    const toggleSortOrder = () => {
+        setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+        fetchUsers();
     };
 
     if (!isOpen) return null;
@@ -365,6 +419,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                     </div>
                 </div>
 
+                {/* Search and Sort Controls */}
+                <div style={{
+                    padding: '20px',
+                    borderBottom: '1px solid #e5e7eb',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center'
+                }}>
+                    <input
+                        type="text"
+                        placeholder="이름 또는 이메일로 검색..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            fontSize: '0.875rem'
+                        }}
+                    />
+                    <button
+                        onClick={toggleSortOrder}
+                        style={{
+                            padding: '8px 16px',
+                            background: 'white',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        가입일 {sortOrder === 'desc' ? '↓ 최신순' : '↑ 오래된순'}
+                    </button>
+                    <div style={{
+                        padding: '8px 12px',
+                        background: '#f3f4f6',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        color: '#6b7280'
+                    }}>
+                        {filteredUsers.length}명 / {users.length}명
+                    </div>
+                </div>
+
                 {/* Users Table */}
                 <div style={{
                     flex: 1,
@@ -393,7 +495,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.map((user) => (
+                                {filteredUsers.map((user) => (
                                     <tr key={user.uid} style={{ borderBottom: '1px solid #e5e7eb' }}>
                                         <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.email || user.displayName || 'No Email'}</td>
                                         <td style={{ padding: '10px', fontSize: '0.875rem' }}>{user.name || user.displayName || 'No Name'}</td>
