@@ -417,11 +417,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                         <td style={{ padding: '10px', textAlign: 'center', fontSize: '0.875rem' }}>
                                             {user.subscriptionEnd ? (
                                                 <div>
-                                                    {new Date(user.subscriptionEnd).toLocaleDateString('ko-KR')}
-                                                    <br />
-                                                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                                        ({Math.ceil((new Date(user.subscriptionEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}일 남음)
-                                                    </span>
+                                                    {(() => {
+                                                        // Firebase Timestamp 객체를 Date로 변환
+                                                        const endDate = user.subscriptionEnd.toDate ?
+                                                            user.subscriptionEnd.toDate() :
+                                                            new Date(user.subscriptionEnd);
+
+                                                        const daysRemaining = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+                                                        return (
+                                                            <>
+                                                                {endDate.toLocaleDateString('ko-KR')}
+                                                                <br />
+                                                                <span style={{ fontSize: '0.75rem', color: daysRemaining > 0 ? '#6b7280' : '#ef4444' }}>
+                                                                    {daysRemaining > 0 ? `(${daysRemaining}일 남음)` : '(만료됨)'}
+                                                                </span>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             ) : (
                                                 user.plan === 'enterprise' ? '무제한' : '미설정'
