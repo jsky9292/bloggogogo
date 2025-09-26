@@ -17,12 +17,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
   }, []);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0a0a0a',
-      color: '#ffffff',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    }}>
+    <>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 0.8; }
+        }
+      `}</style>
+      <div style={{
+        minHeight: '100vh',
+        background: '#0a0a0a',
+        color: '#ffffff',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+      }}>
       {/* Animated Background */}
       <div style={{
         position: 'fixed',
@@ -165,6 +172,29 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
               color: '#a5b4fc'
             }}>
               AI 기반 키워드 분석 플랫폼
+            </span>
+          </div>
+
+          {/* Hook Badge */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 20px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '100px',
+            marginBottom: '2rem',
+            animation: 'pulse 2s infinite'
+          }}>
+            <span style={{ fontSize: '1.2rem' }}>🤫</span>
+            <span style={{
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              쉿! 당신만 아는 키워드 전략
             </span>
           </div>
 
@@ -501,25 +531,37 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
           }}>
             {[
               {
-                name: 'Starter',
-                price: '무료',
-                features: ['14일 무료 체험', '무제한 검색', '모든 프리미엄 기능'],
-                cta: '무료 시작',
+                name: 'Free Trial',
+                price: '₩0',
+                period: '/14일',
+                features: ['하루 10개 키워드 분석', 'AI 블로그 1개 생성', '경쟁 난이도 분석', '검색량 트렌드 확인', '14일 무료 체험'],
+                cta: '지금 무료로 시작',
+                popular: false,
+                badge: '🎁 14일 체험'
+              },
+              {
+                name: 'Basic',
+                price: '₩19,900',
+                period: '/월',
+                features: ['하루 30개 키워드 분석', 'AI 블로그 10개 생성', '상위 10개 경쟁사 분석', '키워드 저장 100개', '이메일 리포트'],
+                cta: 'Basic 시작하기',
                 popular: false
               },
               {
                 name: 'Professional',
-                price: '₩29,900',
+                price: '₩39,900',
                 period: '/월',
-                features: ['일일 200회 검색', '고급 AI 분석', 'AI 콘텐츠 생성', '무제한 저장', '우선 지원'],
-                cta: '프로 시작',
-                popular: true
+                features: ['하루 100개 키워드 분석', 'AI 블로그 무제한', '실시간 순위 모니터링', '무제한 키워드 저장', '카카오톡 알림'],
+                cta: 'Pro 시작하기',
+                popular: true,
+                badge: '🔥 가장 인기'
               },
               {
                 name: 'Enterprise',
-                price: '문의',
-                features: ['무제한 검색', 'API 접근', '전담 매니저', '맞춤 개발', 'SLA 보장'],
-                cta: '상담 요청',
+                price: '맞춤 견적',
+                period: '',
+                features: ['무제한 모든 기능', '다중 사용자 계정', 'API 연동 제공', '1:1 전담 매니저', '맞춤 기능 개발'],
+                cta: '상담 요청하기',
                 popular: false
               }
             ].map((plan, index) => (
@@ -535,7 +577,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   borderRadius: '24px',
                   padding: '2.5rem',
                   position: 'relative',
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '500px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-10px)';
@@ -544,19 +589,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                {plan.popular && (
+                {plan.badge && (
                   <div style={{
                     position: 'absolute',
                     top: '-12px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: plan.popular ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     padding: '0.375rem 1.25rem',
                     borderRadius: '100px',
                     fontSize: '0.875rem',
                     fontWeight: '600'
                   }}>
-                    MOST POPULAR
+                    {plan.badge}
                   </div>
                 )}
 
@@ -589,7 +634,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                 <ul style={{
                   listStyle: 'none',
                   padding: 0,
-                  marginBottom: '2rem'
+                  marginBottom: '2rem',
+                  flex: 1
                 }}>
                   {plan.features.map((feature, idx) => (
                     <li
@@ -750,6 +796,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
         `}
       </style>
     </div>
+    </>
   );
 };
 
