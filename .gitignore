@@ -36,6 +36,11 @@ ADMIN_CREDENTIALS.txt
 *.png
 *.jpg
 *.jpeg
+# public 폴더의 이미지는 허용
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.jpeg
+!public/**/*.webp
 
 # 임시 스크립트
 createAdmin.html
