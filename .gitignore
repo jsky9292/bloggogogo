@@ -54,6 +54,9 @@ server/google_youtube_key.txt
 # 스티비 API 키 - 절대 업로드 금지!
 server/stibee_key.txt
 
+# Gmail 설정 - 절대 업로드 금지!
+server/gmail_config.txt
+
 # Python 캐시
 server/__pycache__/
 *.pyc

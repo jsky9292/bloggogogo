@@ -20,6 +20,7 @@ const EmailComposer: React.FC<EmailComposerProps> = ({ isOpen, onClose, users })
     const [recipientType, setRecipientType] = useState<'all' | 'plan'>('all');
     const [selectedPlan, setSelectedPlan] = useState<string>('all');
     const [sending, setSending] = useState(false);
+    const [emailMethod, setEmailMethod] = useState<'stibee' | 'gmail'>('stibee');
 
     // 템플릿 선택 시 자동으로 제목과 본문 채우기
     const templates = {
@@ -140,6 +141,7 @@ Keyword Insight Pro 팀 드림`
                 body: JSON.stringify({
                     subject,
                     body,
+                    method: emailMethod,
                     recipients: recipients.map(u => ({
                         email: u.email,
                         name: u.name
@@ -217,6 +219,42 @@ Keyword Insight Pro 팀 드림`
                     overflowY: 'auto',
                     padding: '20px'
                 }}>
+                    {/* 발송 방식 선택 */}
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{
+                            display: 'block',
+                            marginBottom: '8px',
+                            fontSize: '0.875rem',
+                            fontWeight: '600',
+                            color: '#374151'
+                        }}>
+                            발송 방식
+                        </label>
+                        <select
+                            value={emailMethod}
+                            onChange={(e) => setEmailMethod(e.target.value as 'stibee' | 'gmail')}
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                fontSize: '0.875rem'
+                            }}
+                        >
+                            <option value="stibee">📧 스티비 (Stibee) - 전문 이메일 마케팅</option>
+                            <option value="gmail">🔵 Gmail - 무료 이메일 발송</option>
+                        </select>
+                        <p style={{
+                            fontSize: '0.75rem',
+                            color: '#6b7280',
+                            marginTop: '6px'
+                        }}>
+                            {emailMethod === 'stibee'
+                                ? '✓ 대량 발송 최적화, 오픈율 추적, 수신 거부 관리'
+                                : '✓ 무료 사용, Gmail 계정 필요, 일일 500통 제한'}
+                        </p>
+                    </div>
+
                     {/* 템플릿 선택 */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
