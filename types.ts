@@ -118,6 +118,16 @@ export interface WeatherData {
   humidity: string;
 }
 
+export interface NaverKeywordData {
+  연관키워드: string;
+  모바일검색량: number;
+  PC검색량: number;
+  총검색량: number;
+  경쟁강도: string;
+  총문서수?: number;
+  경쟁률?: number;
+}
+
 export type SearchSource = 'google' | 'naver';
 
-export type Feature = 'keywords' | 'blogs' | 'competition' | 'sustainable-topics' | 'related-keywords';
+export type Feature = 'keywords' | 'blogs' | 'competition' | 'sustainable-topics' | 'related-keywords' | 'naver-keyword-analysis';

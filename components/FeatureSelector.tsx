@@ -36,6 +36,8 @@ const FeatureSelector: React.FC<FeatureSelectorProps> = ({ selectedFeature, onSe
                 return '📝';
             case 'competition':
                 return '⚔️';
+            case 'naver-keyword-analysis':
+                return '🔍';
             case 'recommendations':
                 return '🎯';
             case 'sustainable-topics':
@@ -49,6 +51,19 @@ const FeatureSelector: React.FC<FeatureSelectorProps> = ({ selectedFeature, onSe
     
     return (
         <div className="flex flex-col gap-2">
+            <button
+                onClick={() => onSelectFeature('naver-keyword-analysis')}
+                className={`${baseButtonClasses} ${selectedFeature === 'naver-keyword-analysis' ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-lg transform scale-[1.02]' : 'bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md border-2 border-green-500 hover:border-green-600'}`}
+                disabled={anyLoading}
+                aria-pressed={selectedFeature === 'naver-keyword-analysis'}
+            >
+                <span className="flex items-center gap-2">
+                    <span>{getIcon('naver-keyword-analysis')}</span>
+                    <span>네이버 키워드 분석</span>
+                </span>
+                {selectedFeature === 'naver-keyword-analysis' && <span>✓</span>}
+            </button>
+
             <button
                 onClick={() => onSelectFeature('keywords')}
                 className={`${baseButtonClasses} ${selectedFeature === 'keywords' ? selectedClasses : unselectedClasses}`}
@@ -100,7 +115,7 @@ const FeatureSelector: React.FC<FeatureSelectorProps> = ({ selectedFeature, onSe
                 </span>
                 {selectedFeature === 'competition' && <span>✓</span>}
             </button>
-            
+
             <button
                 onClick={onFetchRecommendations}
                 disabled={anyLoading}

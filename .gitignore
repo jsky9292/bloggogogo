@@ -45,3 +45,19 @@ ADMIN_CREDENTIALS.txt
 # 임시 스크립트
 createAdmin.html
 scripts/createAdmin.js
+
+# 네이버 API 키 - 절대 업로드 금지!
+server/ad_key.txt
+server/search_key.txt
+server/google_youtube_key.txt
+
+# Python 캐시
+server/__pycache__/
+*.pyc
+*.pyo
+
+# 생성된 엑셀 파일
+server/*.xlsx
+
+# 불필요한 파일
+nul

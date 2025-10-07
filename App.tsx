@@ -26,7 +26,9 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost, generateTrendBlogPost } from './services/keywordService';
-import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem } from './types';
+import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
+import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
+import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
 import { config } from './src/config/appConfig';
 import { updateAdminAccount } from './src/config/firebase';
 
@@ -61,6 +63,12 @@ const App: React.FC = () => {
     const [promptResult, setPromptResult] = useState<KeywordMetrics | null>(null);
     const [promptResultLoading, setPromptResultLoading] = useState<boolean>(false);
     const [promptResultError, setPromptResultError] = useState<string | null>(null);
+
+    const [naverKeywords, setNaverKeywords] = useState<NaverKeywordData[] | null>(null);
+    const [naverKeywordsLoading, setNaverKeywordsLoading] = useState<boolean>(false);
+    const [naverKeywordsError, setNaverKeywordsError] = useState<string | null>(null);
+    const [naverAnalyzing, setNaverAnalyzing] = useState<boolean>(false);
+    const [naverExcelFilename, setNaverExcelFilename] = useState<string>('');
 
     const [blogPost, setBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown'; platform: 'naver' | 'google'; schemaMarkup?: string } | null>(null);
     const [blogPostLoading, setBlogPostLoading] = useState<boolean>(false);
@@ -152,10 +160,16 @@ const App: React.FC = () => {
         setSustainableTopics(null);
         setSustainableTopicsError(null);
         setSustainableTopicsLoading(false);
-        
+
         setPromptResult(null);
         setPromptResultError(null);
-        
+
+        setNaverKeywords(null);
+        setNaverKeywordsError(null);
+        setNaverKeywordsLoading(false);
+        setNaverAnalyzing(false);
+        setNaverExcelFilename('');
+
         setFeature(newFeature);
     };
 
@@ -182,6 +196,10 @@ const App: React.FC = () => {
         setPromptResult(null);
         setPromptResultError(null);
 
+        setNaverKeywords(null);
+        setNaverKeywordsError(null);
+        setNaverExcelFilename('');
+
         if (feature === 'sustainable-topics') {
             setSustainableTopicsLoading(true);
             try {
@@ -195,6 +213,20 @@ const App: React.FC = () => {
                 }
             } finally {
                 setSustainableTopicsLoading(false);
+            }
+        } else if (feature === 'naver-keyword-analysis') {
+            setNaverKeywordsLoading(true);
+            try {
+                const data = await searchNaverKeywords(searchKeyword);
+                setNaverKeywords(data);
+            } catch (err) {
+                if (err instanceof Error) {
+                    setNaverKeywordsError(err.message);
+                } else {
+                    setNaverKeywordsError('네이버 키워드 검색 중 알 수 없는 오류가 발생했습니다.');
+                }
+            } finally {
+                setNaverKeywordsLoading(false);
             }
         } else {
             search(searchKeyword, feature, source);
@@ -631,6 +663,34 @@ const App: React.FC = () => {
         }
     };
 
+    const handleNaverAnalyzeCompetition = async () => {
+        if (!naverKeywords || naverKeywords.length === 0) return;
+
+        setNaverAnalyzing(true);
+        setNaverKeywordsError(null);
+
+        try {
+            const data = await analyzeNaverCompetition(naverKeywords);
+            setNaverKeywords(data);
+            // 파일명은 서버에서 생성되므로 현재 시간 기반으로 생성
+            const now = new Date();
+            const filename = `키워드분석_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.xlsx`;
+            setNaverExcelFilename(filename);
+        } catch (err) {
+            if (err instanceof Error) {
+                setNaverKeywordsError(err.message);
+            } else {
+                setNaverKeywordsError('네이버 경쟁 분석 중 알 수 없는 오류가 발생했습니다.');
+            }
+        } finally {
+            setNaverAnalyzing(false);
+        }
+    };
+
+    const handleNaverExcelDownload = (filename: string) => {
+        downloadExcel(filename);
+    };
+
     const handleReset = () => {
         setResults([]);
         setError(null);
@@ -658,6 +718,12 @@ const App: React.FC = () => {
 
         setPromptResult(null);
         setPromptResultError(null);
+
+        setNaverKeywords(null);
+        setNaverKeywordsError(null);
+        setNaverKeywordsLoading(false);
+        setNaverAnalyzing(false);
+        setNaverExcelFilename('');
     };
 
     const getWelcomeMessage = () => {
@@ -665,6 +731,7 @@ const App: React.FC = () => {
         if (feature === 'related-keywords') return "Google SERP를 분석하고 콘텐츠 전략을 수립할 기준 키워드를 입력해주세요.";
         if (feature === 'blogs') return "상위 10개 포스트를 조회할 키워드를 입력해주세요.";
         if (feature === 'sustainable-topics') return "하나의 키워드를 다양한 관점으로 확장할 '4차원 주제발굴'을 진행할 키워드를 입력해주세요.";
+        if (feature === 'naver-keyword-analysis') return "네이버 광고 API 기반 키워드 분석을 시작할 키워드를 입력해주세요.";
         return "";
     }
     
@@ -673,10 +740,11 @@ const App: React.FC = () => {
         if (feature === 'related-keywords') return "해당 키워드에 대한 SERP 데이터(관련 검색어, PAA)를 찾을 수 없습니다.";
         if (feature === 'blogs') return "해당 키워드에 대한 블로그 포스트를 찾을 수 없습니다.";
         if (feature === 'sustainable-topics') return "해당 키워드에 대한 '4차원 주제발굴'을 진행할 수 없습니다.";
+        if (feature === 'naver-keyword-analysis') return "해당 키워드에 대한 네이버 키워드 분석 결과를 찾을 수 없습니다.";
         return "키워드 경쟁력 분석 결과를 가져올 수 없습니다. 다른 키워드로 시도해보세요.";
     }
 
-    const anyLoading = loading || recoLoading || sustainableTopicsLoading || promptResultLoading;
+    const anyLoading = loading || recoLoading || sustainableTopicsLoading || promptResultLoading || naverKeywordsLoading || naverAnalyzing;
 
     // 로그인하지 않은 경우 랜딩 페이지 표시
     if (!currentUser) {
@@ -1285,8 +1353,21 @@ const App: React.FC = () => {
                                                     )}
                                                 </>
                                             )}
-                                        
-                                            {initialLoad && !anyLoading && !error && !recommendedKeywords && !sustainableTopicsError && (
+
+                                            {/* 네이버 키워드 분석 결과 */}
+                                            {(naverKeywordsLoading || naverAnalyzing) && <LoadingSpinner />}
+                                            {naverKeywordsError && <ErrorMessage message={naverKeywordsError} />}
+                                            {naverKeywords && naverKeywords.length > 0 && (
+                                                <NaverKeywordAnalysis
+                                                    data={naverKeywords}
+                                                    onDownload={handleNaverExcelDownload}
+                                                    filename={naverExcelFilename}
+                                                    onAnalyzeCompetition={handleNaverAnalyzeCompetition}
+                                                    analyzing={naverAnalyzing}
+                                                />
+                                            )}
+
+                                            {initialLoad && !anyLoading && !error && !recommendedKeywords && !sustainableTopicsError && !naverKeywordsError && (
                                                 <div style={{
                                                     textAlign: 'center',
                                                     padding: '4rem',
@@ -1323,7 +1404,7 @@ const App: React.FC = () => {
                                                     </p>
                                                 </div>
                                             )}
-                                            {!initialLoad && results.length === 0 && !sustainableTopics && !anyLoading && !error && !recommendedKeywords && !sustainableTopicsError && (
+                                            {!initialLoad && results.length === 0 && !sustainableTopics && !naverKeywords && !anyLoading && !error && !recommendedKeywords && !sustainableTopicsError && !naverKeywordsError && (
                                                 <div style={{
                                                     textAlign: 'center',
                                                     padding: '4rem',
