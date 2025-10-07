@@ -29,9 +29,16 @@ import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateB
 import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
 import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
-import NaverApiKeyModal, { NaverApiKeys } from './components/NaverApiKeyModal';
 import { config } from './src/config/appConfig';
 import { updateAdminAccount } from './src/config/firebase';
+
+interface NaverApiKeys {
+    adApiKey: string;
+    adSecretKey: string;
+    adCustomerId: string;
+    searchClientId: string;
+    searchClientSecret: string;
+}
 
 const App: React.FC = () => {
     const { results, loading, error, search, initialLoad, setResults, setError, setInitialLoad, setLoading } = useSearch();
@@ -86,10 +93,15 @@ const App: React.FC = () => {
     const [serpBlogPostError, setSerpBlogPostError] = useState<string | null>(null);
 
     const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
-    const [isNaverApiKeyModalOpen, setIsNaverApiKeyModalOpen] = useState<boolean>(false);
     const [naverApiKeys, setNaverApiKeys] = useState<NaverApiKeys | null>(() => {
         const saved = localStorage.getItem('naverApiKeys');
         return saved ? JSON.parse(saved) : null;
+    });
+
+    // 무료 체험 상태 관리
+    const [naverTrialUsed, setNaverTrialUsed] = useState<boolean>(() => {
+        const saved = localStorage.getItem('naverTrialUsed');
+        return saved === 'true';
     });
 
     // 모바일 감지
@@ -145,10 +157,16 @@ const App: React.FC = () => {
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
 
-        // 네이버 키워드 분석 선택 시 API 키 확인
-        if (newFeature === 'naver-keyword-analysis' && !naverApiKeys) {
-            alert('⚠️ 네이버 API 키가 설정되지 않았습니다.\n\n왼쪽 상단의 "🔑 API 키 입력" 버튼을 클릭하여\n네이버 광고 API와 검색 API 키를 먼저 설정해주세요.');
-            return;
+        // 네이버 키워드 분석 선택 시 API 키 확인 (무료 체험 고려, 단 SaaS 모드에서만)
+        if (newFeature === 'naver-keyword-analysis' && !naverApiKeys && config.mode === 'saas') {
+            if (naverTrialUsed) {
+                alert('⚠️ 무료 체험 기회를 이미 사용하셨습니다.\n\n계속 이용하시려면 왼쪽 상단의 "🔑 API 키 입력" 버튼을 클릭하여\n네이버 광고 API와 검색 API 키를 설정해주세요.');
+                return;
+            } else {
+                // 무료 체험 가능 시 안내
+                const proceed = confirm('🎁 무료 체험 1회 제공!\n\n네이버 API 키 없이 1회 무료로 체험해보실 수 있습니다.\n계속하시겠습니까?\n\n※ 무료 체험 후에는 본인의 API 키가 필요합니다.');
+                if (!proceed) return;
+            }
         }
 
         setResults([]);
@@ -239,6 +257,16 @@ const App: React.FC = () => {
                 }
             } finally {
                 setNaverKeywordsLoading(false);
+
+                // 무료 체험 사용 시 표시 저장 (검색 완료 후, SaaS 모드에서만)
+                if (!naverApiKeys && !naverTrialUsed && config.mode === 'saas') {
+                    setNaverTrialUsed(true);
+                    localStorage.setItem('naverTrialUsed', 'true');
+                    // 약간의 지연 후 알림 표시 (UI 업데이트 후)
+                    setTimeout(() => {
+                        alert('✅ 무료 체험이 완료되었습니다!\n\n계속 이용하시려면 왼쪽 상단의 "🔑 API 키 입력"에서\n네이버 API 키를 설정해주세요.');
+                    }, 500);
+                }
             }
         } else {
             search(searchKeyword, feature, source);
@@ -749,7 +777,17 @@ const App: React.FC = () => {
         if (feature === 'related-keywords') return "Google SERP를 분석하고 콘텐츠 전략을 수립할 기준 키워드를 입력해주세요.";
         if (feature === 'blogs') return "상위 10개 포스트를 조회할 키워드를 입력해주세요.";
         if (feature === 'sustainable-topics') return "하나의 키워드를 다양한 관점으로 확장할 '4차원 주제발굴'을 진행할 키워드를 입력해주세요.";
-        if (feature === 'naver-keyword-analysis') return "네이버 광고 API 기반 키워드 분석을 시작할 키워드를 입력해주세요.";
+        if (feature === 'naver-keyword-analysis') {
+            // SaaS 모드에서만 무료 체험 관련 메시지 표시
+            if (config.mode === 'saas') {
+                if (!naverApiKeys && !naverTrialUsed) {
+                    return "🎁 무료 체험 1회 제공! 네이버 광고 API 기반 키워드 분석을 무료로 체험해보세요.";
+                } else if (!naverApiKeys && naverTrialUsed) {
+                    return "네이버 광고 API 기반 키워드 분석을 계속 이용하시려면 API 키를 설정해주세요.";
+                }
+            }
+            return "네이버 광고 API 기반 키워드 분석을 시작할 키워드를 입력해주세요.";
+        }
         return "";
     }
     
@@ -818,43 +856,10 @@ const App: React.FC = () => {
                         {config.mode === 'local' ? (
                             <div>
                                 <ApiKeyStatus />
-                                <ApiKeySettings onApiKeyUpdate={handleApiKeyUpdate} />
-                                <button
-                                    onClick={() => setIsNaverApiKeyModalOpen(true)}
-                                    style={{
-                                        marginTop: '8px',
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        backgroundColor: naverApiKeys ? '#16a34a' : '#f3f4f6',
-                                        color: naverApiKeys ? '#ffffff' : '#6b7280',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        fontSize: '13px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (naverApiKeys) {
-                                            e.currentTarget.style.backgroundColor = '#15803d';
-                                        } else {
-                                            e.currentTarget.style.backgroundColor = '#e5e7eb';
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (naverApiKeys) {
-                                            e.currentTarget.style.backgroundColor = '#16a34a';
-                                        } else {
-                                            e.currentTarget.style.backgroundColor = '#f3f4f6';
-                                        }
-                                    }}
-                                >
-                                    {naverApiKeys ? '✅ 네이버 API' : '🔑 API 키 입력'}
-                                </button>
+                                <ApiKeySettings
+                                    onApiKeyUpdate={handleApiKeyUpdate}
+                                    onNaverApiKeyUpdate={handleSaveNaverApiKeys}
+                                />
                             </div>
                         ) : (
                             <div>
@@ -1501,14 +1506,6 @@ const App: React.FC = () => {
             </div>
 
             {isHelpModalOpen && <HelpModal onClose={() => setIsHelpModalOpen(false)} />}
-
-            {/* 네이버 API 키 설정 모달 */}
-            <NaverApiKeyModal
-                isOpen={isNaverApiKeyModalOpen}
-                onClose={() => setIsNaverApiKeyModalOpen(false)}
-                onSave={handleSaveNaverApiKeys}
-                currentKeys={naverApiKeys || undefined}
-            />
 
             {/* 관리자 대시보드 모달 */}
             {currentUser && currentUser.role === 'admin' && (
