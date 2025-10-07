@@ -29,6 +29,7 @@ import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateB
 import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
 import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
+import NaverApiKeyModal, { NaverApiKeys } from './components/NaverApiKeyModal';
 import { config } from './src/config/appConfig';
 import { updateAdminAccount } from './src/config/firebase';
 
@@ -85,6 +86,11 @@ const App: React.FC = () => {
     const [serpBlogPostError, setSerpBlogPostError] = useState<string | null>(null);
 
     const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
+    const [isNaverApiKeyModalOpen, setIsNaverApiKeyModalOpen] = useState<boolean>(false);
+    const [naverApiKeys, setNaverApiKeys] = useState<NaverApiKeys | null>(() => {
+        const saved = localStorage.getItem('naverApiKeys');
+        return saved ? JSON.parse(saved) : null;
+    });
 
     // 모바일 감지
     const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -138,6 +144,12 @@ const App: React.FC = () => {
 
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
+
+        // 네이버 키워드 분석 선택 시 API 키 확인
+        if (newFeature === 'naver-keyword-analysis' && !naverApiKeys) {
+            alert('⚠️ 네이버 API 키가 설정되지 않았습니다.\n\n왼쪽 상단의 "🔑 API 키 입력" 버튼을 클릭하여\n네이버 광고 API와 검색 API 키를 먼저 설정해주세요.');
+            return;
+        }
 
         setResults([]);
         setError(null);
@@ -691,6 +703,12 @@ const App: React.FC = () => {
         downloadExcel(filename);
     };
 
+    const handleSaveNaverApiKeys = (keys: NaverApiKeys) => {
+        setNaverApiKeys(keys);
+        localStorage.setItem('naverApiKeys', JSON.stringify(keys));
+        alert('✅ 네이버 API 키가 저장되었습니다!');
+    };
+
     const handleReset = () => {
         setResults([]);
         setError(null);
@@ -801,6 +819,42 @@ const App: React.FC = () => {
                             <div>
                                 <ApiKeyStatus />
                                 <ApiKeySettings onApiKeyUpdate={handleApiKeyUpdate} />
+                                <button
+                                    onClick={() => setIsNaverApiKeyModalOpen(true)}
+                                    style={{
+                                        marginTop: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        backgroundColor: naverApiKeys ? '#16a34a' : '#f3f4f6',
+                                        color: naverApiKeys ? '#ffffff' : '#6b7280',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (naverApiKeys) {
+                                            e.currentTarget.style.backgroundColor = '#15803d';
+                                        } else {
+                                            e.currentTarget.style.backgroundColor = '#e5e7eb';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (naverApiKeys) {
+                                            e.currentTarget.style.backgroundColor = '#16a34a';
+                                        } else {
+                                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                                        }
+                                    }}
+                                >
+                                    {naverApiKeys ? '✅ 네이버 API' : '🔑 API 키 입력'}
+                                </button>
                             </div>
                         ) : (
                             <div>
@@ -1447,8 +1501,15 @@ const App: React.FC = () => {
             </div>
 
             {isHelpModalOpen && <HelpModal onClose={() => setIsHelpModalOpen(false)} />}
-            
-            
+
+            {/* 네이버 API 키 설정 모달 */}
+            <NaverApiKeyModal
+                isOpen={isNaverApiKeyModalOpen}
+                onClose={() => setIsNaverApiKeyModalOpen(false)}
+                onSave={handleSaveNaverApiKeys}
+                currentKeys={naverApiKeys || undefined}
+            />
+
             {/* 관리자 대시보드 모달 */}
             {currentUser && currentUser.role === 'admin' && (
                 <AdminDashboard
