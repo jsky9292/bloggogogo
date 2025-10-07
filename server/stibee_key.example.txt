@@ -1,0 +1,10 @@
+STIBEE_API_KEY: your_stibee_api_key_here
+
+# 스티비 API 키 발급 방법:
+# 1. https://stibee.com 에 로그인
+# 2. 우측 상단 프로필 클릭 > 계정 설정
+# 3. API 탭 > API 키 생성
+# 4. 생성된 API 키를 복사하여 위의 your_stibee_api_key_here 부분에 붙여넣기
+# 5. 이 파일을 stibee_key.txt로 저장
+
+# 주의: stibee_key.txt 파일은 .gitignore에 등록되어 있어 git에 업로드되지 않습니다.

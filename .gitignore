@@ -51,6 +51,9 @@ server/ad_key.txt
 server/search_key.txt
 server/google_youtube_key.txt
 
+# 스티비 API 키 - 절대 업로드 금지!
+server/stibee_key.txt
+
 # Python 캐시
 server/__pycache__/
 *.pyc

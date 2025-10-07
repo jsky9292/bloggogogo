@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, updateUserSubscription } from '../src/config/firebase';
+import EmailComposer from './EmailComposer';
 
 interface User {
     uid: string;
@@ -36,6 +37,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+    const [showEmailModal, setShowEmailModal] = useState(false);
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -292,6 +294,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                         관리자 대시보드
                     </h2>
                     <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => setShowEmailModal(true)}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: 'rgba(34, 197, 94, 0.3)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255, 255, 255, 0.3)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}
+                        >
+                            📧 이메일 발송
+                        </button>
                         <button
                             onClick={() => {
                                 console.log('🔄 새로고침 버튼 클릭됨');
@@ -718,6 +736,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                         </div>
                     </div>
                 )}
+
+                {/* 이메일 발송 모달 */}
+                <EmailComposer
+                    isOpen={showEmailModal}
+                    onClose={() => setShowEmailModal(false)}
+                    users={users}
+                />
             </div>
         </div>
     );
