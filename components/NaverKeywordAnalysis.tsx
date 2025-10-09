@@ -15,10 +15,14 @@ type SortDirection = 'asc' | 'desc' | null;
 const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDownload, filename, onAnalyzeCompetition, analyzing }) => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [deletedKeywords, setDeletedKeywords] = useState<Set<string>>(new Set());
 
   if (!data || data.length === 0) {
     return null;
   }
+
+  // 삭제되지 않은 데이터만 필터링
+  const filteredData = data.filter(row => !deletedKeywords.has(row.연관키워드));
 
   const hasCompetitionData = data[0].총문서수 !== undefined;
 
@@ -39,11 +43,25 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
     }
   };
 
+  // 키워드 삭제 함수
+  const handleDeleteKeyword = (keyword: string) => {
+    setDeletedKeywords(prev => {
+      const newSet = new Set(prev);
+      newSet.add(keyword);
+      return newSet;
+    });
+  };
+
+  // 삭제 취소 함수
+  const handleRestoreAll = () => {
+    setDeletedKeywords(new Set());
+  };
+
   // 정렬된 데이터
   const sortedData = useMemo(() => {
-    if (!sortField || !sortDirection) return data;
+    if (!sortField || !sortDirection) return filteredData;
 
-    return [...data].sort((a, b) => {
+    return [...filteredData].sort((a, b) => {
       let aValue: any;
       let bValue: any;
 
@@ -91,7 +109,7 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
           : bValue - aValue;
       }
     });
-  }, [data, sortField, sortDirection]);
+  }, [filteredData, sortField, sortDirection]);
 
   // 정렬 아이콘 컴포넌트
   const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
@@ -129,10 +147,47 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
           color: '#1f2937',
           margin: 0
         }}>
-          📊 네이버 키워드 분석 결과 ({data.length}개)
+          📊 네이버 키워드 분석 결과 ({filteredData.length}개)
+          {deletedKeywords.size > 0 && (
+            <span style={{
+              fontSize: '0.875rem',
+              color: '#6b7280',
+              fontWeight: '400',
+              marginLeft: '0.5rem'
+            }}>
+              (삭제됨: {deletedKeywords.size}개)
+            </span>
+          )}
         </h3>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {deletedKeywords.size > 0 && (
+            <button
+              onClick={handleRestoreAll}
+              style={{
+                padding: '0.5rem 1.25rem',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#ffffff',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 4px rgba(245, 158, 11, 0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(245, 158, 11, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(245, 158, 11, 0.2)';
+              }}
+            >
+              ↺ 삭제 취소
+            </button>
+          )}
           {!hasCompetitionData && onAnalyzeCompetition && (
             <button
               onClick={onAnalyzeCompetition}
@@ -228,6 +283,16 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
         }}>
           <thead>
             <tr style={{ background: '#f9fafb' }}>
+              <th style={{
+                padding: '0.75rem 1rem',
+                textAlign: 'center',
+                fontWeight: '600',
+                color: '#374151',
+                borderBottom: '2px solid #e5e7eb',
+                width: '60px'
+              }}>
+                삭제
+              </th>
               <th
                 onClick={() => handleSort('keyword')}
                 style={{
@@ -368,6 +433,37 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
                   e.currentTarget.style.background = index % 2 === 0 ? '#ffffff' : '#f9fafb';
                 }}
               >
+                <td style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'center',
+                  borderBottom: '1px solid #e5e7eb'
+                }}>
+                  <button
+                    onClick={() => handleDeleteKeyword(row.연관키워드)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      background: '#03C75A',
+                      border: 'none',
+                      borderRadius: '4px',
+                      color: '#ffffff',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#02B350';
+                      e.currentTarget.style.transform = 'scale(1.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#03C75A';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    title="이 키워드 삭제"
+                  >
+                    ✕
+                  </button>
+                </td>
                 <td style={{
                   padding: '0.75rem 1rem',
                   color: '#1f2937',
