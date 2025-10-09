@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { NaverKeywordData } from '../types';
 
 interface NaverKeywordAnalysisProps {
@@ -9,12 +9,103 @@ interface NaverKeywordAnalysisProps {
   analyzing?: boolean;
 }
 
+type SortField = 'keyword' | 'mobile' | 'pc' | 'total' | 'competition' | 'docCount' | 'ratio';
+type SortDirection = 'asc' | 'desc' | null;
+
 const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDownload, filename, onAnalyzeCompetition, analyzing }) => {
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+
   if (!data || data.length === 0) {
     return null;
   }
 
   const hasCompetitionData = data[0].총문서수 !== undefined;
+
+  // 정렬 함수
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // 같은 필드 클릭: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortDirection(null);
+        setSortField(null);
+      }
+    } else {
+      // 다른 필드 클릭: asc부터 시작
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // 정렬된 데이터
+  const sortedData = useMemo(() => {
+    if (!sortField || !sortDirection) return data;
+
+    return [...data].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'keyword':
+          aValue = a.연관키워드;
+          bValue = b.연관키워드;
+          break;
+        case 'mobile':
+          aValue = a.모바일검색량;
+          bValue = b.모바일검색량;
+          break;
+        case 'pc':
+          aValue = a.PC검색량;
+          bValue = b.PC검색량;
+          break;
+        case 'total':
+          aValue = a.총검색량;
+          bValue = b.총검색량;
+          break;
+        case 'competition':
+          const competitionOrder = { '낮음': 1, '중간': 2, '높음': 3 };
+          aValue = competitionOrder[a.경쟁강도 as keyof typeof competitionOrder] || 0;
+          bValue = competitionOrder[b.경쟁강도 as keyof typeof competitionOrder] || 0;
+          break;
+        case 'docCount':
+          aValue = a.총문서수 || 0;
+          bValue = b.총문서수 || 0;
+          break;
+        case 'ratio':
+          aValue = a.경쟁률 || 0;
+          bValue = b.경쟁률 || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string') {
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === 'asc'
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+    });
+  }, [data, sortField, sortDirection]);
+
+  // 정렬 아이콘 컴포넌트
+  const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
+    if (sortField !== field) {
+      return (
+        <span style={{ opacity: 0.3, marginLeft: '4px' }}>⇅</span>
+      );
+    }
+    return (
+      <span style={{ marginLeft: '4px' }}>
+        {sortDirection === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  };
 
   return (
     <div style={{
@@ -137,79 +228,135 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
         }}>
           <thead>
             <tr style={{ background: '#f9fafb' }}>
-              <th style={{
-                padding: '0.75rem 1rem',
-                textAlign: 'left',
-                fontWeight: '600',
-                color: '#374151',
-                borderBottom: '2px solid #e5e7eb'
-              }}>
-                연관키워드
+              <th
+                onClick={() => handleSort('keyword')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'left',
+                  fontWeight: '600',
+                  color: '#374151',
+                  borderBottom: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                연관키워드 <SortIcon field="keyword" />
               </th>
-              <th style={{
-                padding: '0.75rem 1rem',
-                textAlign: 'right',
-                fontWeight: '600',
-                color: '#374151',
-                borderBottom: '2px solid #e5e7eb'
-              }}>
-                모바일검색량
+              <th
+                onClick={() => handleSort('mobile')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'right',
+                  fontWeight: '600',
+                  color: '#374151',
+                  borderBottom: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                모바일검색량 <SortIcon field="mobile" />
               </th>
-              <th style={{
-                padding: '0.75rem 1rem',
-                textAlign: 'right',
-                fontWeight: '600',
-                color: '#374151',
-                borderBottom: '2px solid #e5e7eb'
-              }}>
-                PC검색량
+              <th
+                onClick={() => handleSort('pc')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'right',
+                  fontWeight: '600',
+                  color: '#374151',
+                  borderBottom: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                PC검색량 <SortIcon field="pc" />
               </th>
-              <th style={{
-                padding: '0.75rem 1rem',
-                textAlign: 'right',
-                fontWeight: '600',
-                color: '#374151',
-                borderBottom: '2px solid #e5e7eb'
-              }}>
-                총검색량
+              <th
+                onClick={() => handleSort('total')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'right',
+                  fontWeight: '600',
+                  color: '#374151',
+                  borderBottom: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                총검색량 <SortIcon field="total" />
               </th>
-              <th style={{
-                padding: '0.75rem 1rem',
-                textAlign: 'center',
-                fontWeight: '600',
-                color: '#374151',
-                borderBottom: '2px solid #e5e7eb'
-              }}>
-                경쟁강도
+              <th
+                onClick={() => handleSort('competition')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  textAlign: 'center',
+                  fontWeight: '600',
+                  color: '#374151',
+                  borderBottom: '2px solid #e5e7eb',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                경쟁강도 <SortIcon field="competition" />
               </th>
               {hasCompetitionData && (
                 <>
-                  <th style={{
-                    padding: '0.75rem 1rem',
-                    textAlign: 'right',
-                    fontWeight: '600',
-                    color: '#374151',
-                    borderBottom: '2px solid #e5e7eb'
-                  }}>
-                    총문서수
+                  <th
+                    onClick={() => handleSort('docCount')}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    총문서수 <SortIcon field="docCount" />
                   </th>
-                  <th style={{
-                    padding: '0.75rem 1rem',
-                    textAlign: 'right',
-                    fontWeight: '600',
-                    color: '#374151',
-                    borderBottom: '2px solid #e5e7eb'
-                  }}>
-                    경쟁률
+                  <th
+                    onClick={() => handleSort('ratio')}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    경쟁률 <SortIcon field="ratio" />
                   </th>
                 </>
               )}
             </tr>
           </thead>
           <tbody>
-            {data.map((row, index) => (
+            {sortedData.map((row, index) => (
               <tr
-                key={index}
+                key={row.연관키워드}
                 style={{
                   background: index % 2 === 0 ? '#ffffff' : '#f9fafb',
                   transition: 'background 0.2s'
