@@ -67,17 +67,48 @@ export async function downloadExcel(filename: string) {
     const response = await fetch(`${FLASK_API_URL}/download/${filename}`);
     const blob = await response.blob();
 
-    // 다운로드 링크 생성
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+    // File System Access API 지원 확인
+    if ('showSaveFilePicker' in window) {
+      try {
+        // 파일 저장 대화상자 열기
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'Excel Files',
+            accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+          }]
+        });
 
-    // 정리
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+        // 파일 쓰기
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+
+        alert('✅ 파일이 성공적으로 저장되었습니다!');
+      } catch (err: any) {
+        // 사용자가 취소한 경우
+        if (err.name === 'AbortError') {
+          console.log('파일 저장이 취소되었습니다.');
+          return;
+        }
+        throw err;
+      }
+    } else {
+      // File System Access API를 지원하지 않는 브라우저의 경우 기존 방식 사용
+      // 브라우저 설정에서 "다운로드 전 저장 위치 확인" 옵션을 활성화하면 폴더 선택 가능
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+
+      // 정리
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      alert('ℹ️ 파일이 다운로드되었습니다.\n저장 위치를 선택하려면 브라우저 설정에서 "다운로드 전 저장 위치 확인" 옵션을 활성화하세요.');
+    }
   } catch (error) {
     console.error('엑셀 다운로드 오류:', error);
     alert('엑셀 파일 다운로드에 실패했습니다.');
