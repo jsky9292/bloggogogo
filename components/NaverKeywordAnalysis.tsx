@@ -5,7 +5,7 @@ interface NaverKeywordAnalysisProps {
   data: NaverKeywordData[];
   onDownload?: (filename: string) => void;
   filename?: string;
-  onAnalyzeCompetition?: () => void;
+  onAnalyzeCompetition?: (keywords: NaverKeywordData[]) => void;
   analyzing?: boolean;
 }
 
@@ -16,6 +16,8 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [deletedKeywords, setDeletedKeywords] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   if (!data || data.length === 0) {
     return null;
@@ -111,6 +113,24 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
     });
   }, [filteredData, sortField, sortDirection]);
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageData = sortedData.slice(startIndex, endIndex);
+
+  // 페이지당 개수 변경 핸들러
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1); // 페이지를 첫 페이지로 리셋
+  };
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // 정렬 아이콘 컴포넌트
   const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
     if (sortField !== field) {
@@ -141,24 +161,91 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
         flexWrap: 'wrap',
         gap: '1rem'
       }}>
-        <h3 style={{
-          fontSize: '1.25rem',
-          fontWeight: '600',
-          color: '#1f2937',
-          margin: 0
-        }}>
-          📊 네이버 키워드 분석 결과 ({filteredData.length}개)
-          {deletedKeywords.size > 0 && (
-            <span style={{
-              fontSize: '0.875rem',
-              color: '#6b7280',
-              fontWeight: '400',
-              marginLeft: '0.5rem'
-            }}>
-              (삭제됨: {deletedKeywords.size}개)
-            </span>
-          )}
-        </h3>
+        <div>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: '600',
+            color: '#1f2937',
+            margin: 0,
+            marginBottom: '0.5rem'
+          }}>
+            📊 네이버 키워드 분석 결과 ({filteredData.length}개)
+            {deletedKeywords.size > 0 && (
+              <span style={{
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                fontWeight: '400',
+                marginLeft: '0.5rem'
+              }}>
+                (삭제됨: {deletedKeywords.size}개)
+              </span>
+            )}
+          </h3>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.875rem',
+            color: '#6b7280'
+          }}>
+            <span>페이지당 표시:</span>
+            {[20, 50, 100].map(count => (
+              <button
+                key={count}
+                onClick={() => handleItemsPerPageChange(count)}
+                style={{
+                  padding: '0.25rem 0.75rem',
+                  background: itemsPerPage === count ? '#3b82f6' : '#f3f4f6',
+                  color: itemsPerPage === count ? '#ffffff' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (itemsPerPage !== count) {
+                    e.currentTarget.style.background = '#e5e7eb';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (itemsPerPage !== count) {
+                    e.currentTarget.style.background = '#f3f4f6';
+                  }
+                }}
+              >
+                {count}
+              </button>
+            ))}
+            <button
+              onClick={() => handleItemsPerPageChange(filteredData.length)}
+              style={{
+                padding: '0.25rem 0.75rem',
+                background: itemsPerPage === filteredData.length ? '#3b82f6' : '#f3f4f6',
+                color: itemsPerPage === filteredData.length ? '#ffffff' : '#6b7280',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (itemsPerPage !== filteredData.length) {
+                  e.currentTarget.style.background = '#e5e7eb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (itemsPerPage !== filteredData.length) {
+                  e.currentTarget.style.background = '#f3f4f6';
+                }
+              }}
+            >
+              전체
+            </button>
+          </div>
+        </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {deletedKeywords.size > 0 && (
@@ -190,7 +277,7 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
           )}
           {!hasCompetitionData && onAnalyzeCompetition && (
             <button
-              onClick={onAnalyzeCompetition}
+              onClick={() => onAnalyzeCompetition(currentPageData)}
               disabled={analyzing}
               style={{
                 padding: '0.5rem 1.25rem',
@@ -419,7 +506,7 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((row, index) => (
+            {currentPageData.map((row, index) => (
               <tr
                 key={row.연관키워드}
                 style={{
@@ -543,6 +630,135 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
         </table>
       </div>
 
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div style={{
+          marginTop: '1.5rem',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            style={{
+              padding: '0.5rem 0.75rem',
+              background: currentPage === 1 ? '#f3f4f6' : '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              color: currentPage === 1 ? '#9ca3af' : '#374151',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = '#f9fafb';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = '#ffffff';
+              }
+            }}
+          >
+            ← 이전
+          </button>
+
+          <div style={{
+            display: 'flex',
+            gap: '0.25rem'
+          }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+              // 현재 페이지 주변 페이지만 표시
+              const showPage =
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 2 && page <= currentPage + 2);
+
+              const showEllipsis =
+                (page === currentPage - 3 && currentPage > 4) ||
+                (page === currentPage + 3 && currentPage < totalPages - 3);
+
+              if (showEllipsis) {
+                return (
+                  <span key={page} style={{
+                    padding: '0.5rem 0.75rem',
+                    color: '#9ca3af',
+                    fontSize: '0.875rem'
+                  }}>
+                    ...
+                  </span>
+                );
+              }
+
+              if (!showPage) return null;
+
+              return (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    minWidth: '2.5rem',
+                    background: currentPage === page ? '#3b82f6' : '#ffffff',
+                    border: `1px solid ${currentPage === page ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '6px',
+                    color: currentPage === page ? '#ffffff' : '#374151',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== page) {
+                      e.currentTarget.style.background = '#f9fafb';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== page) {
+                      e.currentTarget.style.background = '#ffffff';
+                    }
+                  }}
+                >
+                  {page}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '0.5rem 0.75rem',
+              background: currentPage === totalPages ? '#f3f4f6' : '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              color: currentPage === totalPages ? '#9ca3af' : '#374151',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = '#f9fafb';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = '#ffffff';
+              }
+            }}
+          >
+            다음 →
+          </button>
+        </div>
+      )}
+
       <div style={{
         marginTop: '1rem',
         padding: '1rem',
@@ -558,6 +774,7 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
         }}>
           💡 <strong>Tip:</strong> 경쟁률이 낮을수록 상위 노출 가능성이 높습니다.
           {hasCompetitionData && ' 경쟁 분석 결과를 참고하여 최적의 키워드를 선택하세요.'}
+          {totalPages > 1 && ` 현재 ${currentPage} / ${totalPages} 페이지 (${startIndex + 1}-${Math.min(endIndex, sortedData.length)} / ${sortedData.length}개)`}
         </p>
       </div>
     </div>

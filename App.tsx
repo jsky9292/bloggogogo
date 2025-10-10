@@ -703,15 +703,24 @@ const App: React.FC = () => {
         }
     };
 
-    const handleNaverAnalyzeCompetition = async () => {
-        if (!naverKeywords || naverKeywords.length === 0) return;
+    const handleNaverAnalyzeCompetition = async (keywordsToAnalyze: NaverKeywordData[]) => {
+        if (!keywordsToAnalyze || keywordsToAnalyze.length === 0) return;
 
         setNaverAnalyzing(true);
         setNaverKeywordsError(null);
 
         try {
-            const data = await analyzeNaverCompetition(naverKeywords);
-            setNaverKeywords(data);
+            const analyzedData = await analyzeNaverCompetition(keywordsToAnalyze);
+
+            // 전체 데이터에서 분석된 키워드만 업데이트
+            if (naverKeywords) {
+                const updatedKeywords = naverKeywords.map(keyword => {
+                    const analyzed = analyzedData.find(a => a.연관키워드 === keyword.연관키워드);
+                    return analyzed || keyword;
+                });
+                setNaverKeywords(updatedKeywords);
+            }
+
             // 파일명은 서버에서 생성되므로 현재 시간 기반으로 생성
             const now = new Date();
             const filename = `키워드분석_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.xlsx`;
