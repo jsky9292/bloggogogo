@@ -241,7 +241,7 @@ const NaverKeywordAnalysis: React.FC<NaverKeywordAnalysisProps> = ({ data, onDow
             </button>
           )}
 
-          {hasCompetitionData && filename && onDownload && (
+          {filename && onDownload && (
             <button
               onClick={() => onDownload(filename)}
               style={{
