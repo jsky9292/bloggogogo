@@ -7,21 +7,37 @@ interface BlogPostDisplayProps {
     format: 'html' | 'markdown' | 'text';
     platform: 'naver' | 'google';
     schemaMarkup?: string;
+    htmlPreview?: string;
+    metadata?: {
+        keywords: string;
+        imagePrompt: string;
+        seoTitles: string[];
+    };
 }
 
-const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, format, platform, schemaMarkup }) => {
+const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, format, platform, schemaMarkup, htmlPreview, metadata }) => {
     const [viewMode, setViewMode] = useState<'preview' | 'source' | 'schema'>('preview');
 
     const renderPreview = () => {
-        if (format === 'text') {
-            // For Naver plain text format
-            return (
-                <div className="whitespace-pre-wrap font-sans text-gray-200" style={{ lineHeight: '1.8' }}>
-                    {content}
-                </div>
-            );
-        } else if (format === 'html') {
-            // For Google HTML format
+        if (format === 'html') {
+            // 네이버: htmlPreview 사용 (iframe으로 렌더링)
+            if (platform === 'naver' && htmlPreview) {
+                return (
+                    <iframe
+                        srcDoc={htmlPreview}
+                        style={{
+                            width: '100%',
+                            minHeight: '500px',
+                            border: 'none',
+                            backgroundColor: 'white',
+                            borderRadius: '8px'
+                        }}
+                        title="네이버 블로그 미리보기"
+                    />
+                );
+            }
+
+            // 구글: content를 직접 렌더링 (스타일 적용)
             const previewTableStyle = viewMode === 'preview' ? `
                     .blog-content table {
                         border-collapse: collapse !important;
@@ -49,67 +65,72 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
 
             const styledContent = `
                 <style>
-                    .blog-content * { color: #e5e7eb !important; }
-                    .blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4, .blog-content h5, .blog-content h6 { color: #60a5fa !important; margin: 1em 0 0.5em 0; font-weight: bold; }
-                    .blog-content h1 { font-size: 1.8em; border-bottom: 2px solid #374151; padding-bottom: 0.3em; }
+                    .blog-content {
+                        background: #ffffff !important;
+                        padding: 20px;
+                        border-radius: 8px;
+                    }
+                    .blog-content * { color: #1f2937 !important; }
+                    .blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4, .blog-content h5, .blog-content h6 { color: #1e40af !important; margin: 1em 0 0.5em 0; font-weight: bold; }
+                    .blog-content h1 { font-size: 1.8em; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
                     .blog-content h2 { font-size: 1.5em; margin-top: 1.5em; }
                     .blog-content h3 { font-size: 1.2em; }
                     .blog-content p { margin: 0.8em 0; line-height: 1.8; }
                     .blog-content ul, .blog-content ol { margin: 0.8em 0; padding-left: 1.5em; }
                     .blog-content li { margin: 0.4em 0; }
-                    .blog-content strong, .blog-content b { color: #60a5fa !important; font-weight: bold; }
-                    .blog-content em, .blog-content i { color: #93c5fd !important; }
-                    .blog-content blockquote { border-left: 3px solid #60a5fa; padding-left: 1em; margin: 1em 0; background: #1f2937; }
-                    .blog-content code { background: #1f2937; padding: 0.2em 0.4em; border-radius: 3px; color: #10b981 !important; }
-                    .blog-content pre { background: #1f2937; padding: 1em; border-radius: 5px; overflow-x: auto; }
+                    .blog-content strong, .blog-content b { color: #1e40af !important; font-weight: bold; }
+                    .blog-content em, .blog-content i { color: #3b82f6 !important; }
+                    .blog-content blockquote { border-left: 3px solid #3b82f6; padding-left: 1em; margin: 1em 0; background: #f3f4f6; }
+                    .blog-content code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 3px; color: #059669 !important; }
+                    .blog-content pre { background: #f3f4f6; padding: 1em; border-radius: 5px; overflow-x: auto; }
                     .blog-content table {
                         border-collapse: collapse;
                         width: 100%;
                         margin: 1.5em 0;
-                        background: #111827 !important;
-                        border: 1px solid #374151;
+                        background: #ffffff !important;
+                        border: 1px solid #d1d5db;
                     }
                     .blog-content thead {
-                        background: #1f2937 !important;
+                        background: #f3f4f6 !important;
                     }
                     .blog-content th, .blog-content td {
-                        border: 1px solid #374151 !important;
+                        border: 1px solid #d1d5db !important;
                         padding: 0.75em !important;
                         text-align: left;
-                        color: #e5e7eb !important;
+                        color: #1f2937 !important;
                     }
                     .blog-content th {
-                        background: #1f2937 !important;
+                        background: #f3f4f6 !important;
                         font-weight: bold;
-                        color: #60a5fa !important;
+                        color: #1e40af !important;
                         text-align: center;
                     }
                     .blog-content tbody tr:nth-child(even) {
-                        background: #1a1f2e !important;
+                        background: #f9fafb !important;
                     }
                     .blog-content tbody tr:hover {
-                        background: #243447 !important;
+                        background: #eff6ff !important;
                     }
                     .blog-content td {
-                        background: #111827 !important;
-                        color: #f3f4f6 !important;
+                        background: #ffffff !important;
+                        color: #1f2937 !important;
                     }
                     .blog-content table * {
-                        color: #f3f4f6 !important;
+                        color: #1f2937 !important;
                     }
                     .blog-content table p,
                     .blog-content table span,
                     .blog-content table div,
                     .blog-content table li {
-                        color: #f3f4f6 !important;
+                        color: #1f2937 !important;
                     }
-                    .blog-content a { color: #60a5fa !important; text-decoration: underline; }
+                    .blog-content a { color: #3b82f6 !important; text-decoration: underline; }
                     ${previewTableStyle}
                 </style>
                 ${content}
             `;
             return (
-                <div 
+                <div
                     className="blog-content"
                     dangerouslySetInnerHTML={{ __html: styledContent }}
                 />
@@ -231,6 +252,7 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                             <li>C-rank 로직과 DIA 원칙이 적용되었습니다</li>
                             <li>이미지는 [이미지: 설명] 위치에 추가하세요</li>
                             <li>키워드 밀도가 3-5%로 최적화되었습니다</li>
+                            <li className="text-yellow-300">미리보기 화면을 마우스로 드래그하여 선택 후 복사(Ctrl+C)하면 형식이 그대로 유지됩니다</li>
                         </ul>
                     </div>
                 )}
@@ -244,6 +266,54 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                             <li>Schema Markup을 추가하여 검색 결과 향상</li>
                             <li className="text-yellow-300">HTML 소스코드를 복사하여 블로거/워드프레스의 HTML 편집기에 붙여넣으세요</li>
                         </ul>
+                    </div>
+                )}
+
+                {/* 구글 전용: 추가 정보 섹션 */}
+                {platform === 'google' && metadata && (
+                    <div className="bg-gray-900 border border-blue-800 rounded-lg p-4 text-xs space-y-3">
+                        <h4 className="text-blue-400 font-bold text-sm mb-3">📌 추가 정보 (블로그 작성 참고용)</h4>
+
+                        {/* 핵심 키워드 */}
+                        <div className="bg-gray-800 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-300 font-semibold">🔍 핵심 키워드 (해시태그)</p>
+                                <CopyButton textToCopy={metadata.keywords} />
+                            </div>
+                            <p className="text-gray-400 break-words">{metadata.keywords}</p>
+                        </div>
+
+                        {/* 이미지 프롬프트 */}
+                        <div className="bg-gray-800 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-300 font-semibold">🎨 이미지 생성 프롬프트</p>
+                                <CopyButton textToCopy={metadata.imagePrompt} />
+                            </div>
+                            <p className="text-gray-400 italic break-words">{metadata.imagePrompt}</p>
+                            <p className="text-gray-500 text-xs mt-2">* Midjourney, DALL-E, Stable Diffusion 등에 활용</p>
+                        </div>
+
+                        {/* SEO 최적 제목 제안 */}
+                        <div className="bg-gray-800 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-gray-300 font-semibold">📝 SEO 최적 제목 제안 (5개)</p>
+                            </div>
+                            <div className="space-y-2">
+                                {metadata.seoTitles.map((seoTitle, index) => (
+                                    <div key={index} className="flex items-start gap-2 bg-gray-700 rounded p-2">
+                                        <span className="text-gray-400 text-xs mt-0.5 flex-shrink-0">{index + 1}.</span>
+                                        <p className="text-gray-300 text-xs flex-1 break-words">{seoTitle}</p>
+                                        <div className="flex-shrink-0">
+                                            <CopyButton textToCopy={seoTitle} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <p className="text-gray-500 text-xs italic text-center pt-2 border-t border-gray-700">
+                            💡 위 정보는 소스코드 복사에 포함되지 않습니다
+                        </p>
                     </div>
                 )}
             </div>

@@ -25,6 +25,7 @@ import AuthModal from './components/AuthModal';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
+import BlogWritingModal from './components/BlogWritingModal';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost, generateTrendBlogPost } from './services/keywordService';
 import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
@@ -78,17 +79,17 @@ const App: React.FC = () => {
     const [naverAnalyzing, setNaverAnalyzing] = useState<boolean>(false);
     const [naverExcelFilename, setNaverExcelFilename] = useState<string>('');
 
-    const [blogPost, setBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown'; platform: 'naver' | 'google'; schemaMarkup?: string } | null>(null);
+    const [blogPost, setBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; platform: 'naver' | 'google'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } } | null>(null);
     const [blogPostLoading, setBlogPostLoading] = useState<boolean>(false);
     const [blogPostError, setBlogPostError] = useState<string | null>(null);
     
     // PAA용 별도 블로그 포스트 state
-    const [paaBlogPost, setPaaBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown'; platform: 'naver' | 'google'; schemaMarkup?: string } | null>(null);
+    const [paaBlogPost, setPaaBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; platform: 'naver' | 'google'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } } | null>(null);
     const [paaBlogPostLoading, setPaaBlogPostLoading] = useState<boolean>(false);
     const [paaBlogPostError, setPaaBlogPostError] = useState<string | null>(null);
-    
-    // SERP용 별도 블로그 포스트 state  
-    const [serpBlogPost, setSerpBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown'; platform: 'naver' | 'google'; schemaMarkup?: string } | null>(null);
+
+    // SERP용 별도 블로그 포스트 state
+    const [serpBlogPost, setSerpBlogPost] = useState<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; platform: 'naver' | 'google'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } } | null>(null);
     const [serpBlogPostLoading, setSerpBlogPostLoading] = useState<boolean>(false);
     const [serpBlogPostError, setSerpBlogPostError] = useState<string | null>(null);
 
@@ -132,6 +133,13 @@ const App: React.FC = () => {
         const saved = localStorage.getItem('user');
         return saved ? JSON.parse(saved) : null;
     });
+
+    // 블로그 글쓰기 모달 상태
+    const [isBlogWritingModalOpen, setIsBlogWritingModalOpen] = useState(false);
+    const [pendingBlogWrite, setPendingBlogWrite] = useState<{
+        type: 'topic' | 'strategy' | 'sustainable' | 'serp' | 'paa';
+        data: any;
+    } | null>(null);
 
     // 대시보드 상태 디버깅용 useEffect
     useEffect(() => {
@@ -323,6 +331,20 @@ const App: React.FC = () => {
 
     const handleGenerateBlogPost = async (topic: GeneratedTopic & { platform: 'naver' | 'google' }) => {
         console.log('handleGenerateBlogPost called with:', topic);
+        // 모달 열기
+        setPendingBlogWrite({ type: 'topic', data: topic });
+        setIsBlogWritingModalOpen(true);
+    };
+
+    // 실제 글쓰기 실행 함수
+    const executeGenerateBlogPost = async (
+        topic: GeneratedTopic & { platform: 'naver' | 'google' },
+        options: {
+            contentFormat?: 'comparison' | 'listicle' | 'guide';
+            tone: 'friendly' | 'expert' | 'informative';
+        }
+    ) => {
+        console.log('executeGenerateBlogPost called with:', topic, options);
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
@@ -335,21 +357,13 @@ const App: React.FC = () => {
                 !['위한', '하는', '대한', '없는', '있는', '되는'].includes(word)
             );
             keywords.push(...titleWords.slice(0, 4));
-            
-            // If keywords from topic object are available, use them
-            const effectiveKeywords = topic.keywords && topic.keywords.length > 0 
-                ? topic.keywords 
-                : keywords;
-            
-            // Determine tone based on topic
-            let tone: 'friendly' | 'expert' | 'informative' = 'informative';
-            if (topic.strategy.includes('친근') || topic.strategy.includes('일상')) {
-                tone = 'friendly';
-            } else if (topic.strategy.includes('전문') || topic.strategy.includes('분석')) {
-                tone = 'expert';
-            }
 
-            const post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, tone);
+            // If keywords from topic object are available, use them
+            const effectiveKeywords = topic.keywords && topic.keywords.length > 0
+                ? topic.keywords
+                : keywords;
+
+            const post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, options.tone, options.contentFormat);
             setBlogPost({ ...post, platform: topic.platform });
         } catch (err) {
             if (err instanceof Error) {
@@ -371,40 +385,46 @@ const App: React.FC = () => {
         platform: 'naver' | 'google';
         keyword?: string; // CompetitionAnalysisResults에서 전달하는 키워드
     }) => {
-        console.log('=== handleGenerateBlogPostFromStrategy START ===');
+        console.log('handleGenerateBlogPostFromStrategy called with:', suggestion);
+        // 모달 열기
+        setPendingBlogWrite({ type: 'strategy', data: suggestion });
+        setIsBlogWritingModalOpen(true);
+    };
+
+    // 실제 전략 글쓰기 실행 함수
+    const executeGenerateBlogPostFromStrategy = async (
+        suggestion: {
+            title: string;
+            thumbnailCopy?: string;
+            strategy?: string;
+            description?: string;
+            platform: 'naver' | 'google';
+            keyword?: string;
+        },
+        options: {
+            contentFormat?: 'comparison' | 'listicle' | 'guide';
+            tone: 'friendly' | 'expert' | 'informative';
+        }
+    ) => {
+        console.log('=== executeGenerateBlogPostFromStrategy START ===');
         console.log('suggestion:', suggestion);
-        console.log('mainKeyword:', mainKeyword);
-        console.log('keyword:', keyword);
-        console.log('results:', results);
+        console.log('options:', options);
 
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
 
         try {
-            // 우선순위: 1. suggestion.keyword (CompetitionAnalysisResults에서 전달)
-            //          2. mainKeyword (검색시 설정됨)
-            //          3. keyword (입력 필드 값)
-            //          4. results[0].keyword (경쟁력 분석 결과)
             let searchKeyword = suggestion.keyword || mainKeyword || keyword;
 
             if (!searchKeyword && isCompetitionResult(results) && results[0]) {
                 searchKeyword = results[0].keyword;
-                console.log('Using keyword from competition results:', searchKeyword);
             }
 
             if (!searchKeyword) {
-                console.error('NO KEYWORD FOUND!');
-                console.error('suggestion.keyword:', suggestion.keyword);
-                console.error('mainKeyword:', mainKeyword);
-                console.error('keyword:', keyword);
-                console.error('results[0]:', results[0]);
                 throw new Error('키워드를 찾을 수 없습니다. 분석을 다시 실행해주세요.');
             }
 
-            console.log('Final searchKeyword:', searchKeyword);
-
-            // Better keyword extraction including main keyword
             const keywords = [searchKeyword];
             const titleWords = suggestion.title.split(' ').filter(word =>
                 word.length > 2 && word !== searchKeyword &&
@@ -412,26 +432,22 @@ const App: React.FC = () => {
             );
             keywords.push(...titleWords.slice(0, 4));
 
-            console.log('Generated keywords:', keywords);
-            console.log('Platform:', suggestion.platform);
-
-            // Use title as the topic
-            // 키워드 경쟁력 분석에서는 실시간 트렌드 블로그 생성 함수 사용
+            // 키워드 경쟁력 분석에서는 실시간 트렌드 블로그 생성 함수 사용 (tone과 contentFormat 추가)
             const result = await generateTrendBlogPost(
                 suggestion.title,
                 keywords,
                 suggestion.platform,
-                'informative'
+                options.tone,
+                options.contentFormat
             );
 
             if (result) {
                 setBlogPost({ ...result, platform: suggestion.platform });
-                console.log('Blog post generated successfully');
             } else {
                 throw new Error('블로그 글 생성 결과가 없습니다.');
             }
         } catch (err) {
-            console.error('Error in handleGenerateBlogPostFromStrategy:', err);
+            console.error('Error in executeGenerateBlogPostFromStrategy:', err);
             if (err instanceof Error) {
                 setBlogPostError(err.message);
             } else {
@@ -451,31 +467,42 @@ const App: React.FC = () => {
         platform: 'naver' | 'google';
     }) => {
         console.log('handleGenerateBlogPostFromSustainable called with:', topic);
+        setPendingBlogWrite({ type: 'sustainable', data: topic });
+        setIsBlogWritingModalOpen(true);
+    };
+
+    // 4차원 주제발굴 실제 글쓰기 실행 함수
+    const executeGenerateBlogPostFromSustainable = async (
+        topic: {
+            title: string;
+            keywords: string[];
+            strategy: string;
+            category: string;
+            platform: 'naver' | 'google';
+        },
+        options: {
+            contentFormat?: 'comparison' | 'listicle' | 'guide';
+            tone: 'friendly' | 'expert' | 'informative';
+        }
+    ) => {
+        console.log('executeGenerateBlogPostFromSustainable called with:', topic, options);
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
 
         try {
-            // 카테고리에 따라 톤 결정
-            const toneMap: { [key: string]: 'friendly' | 'expert' | 'informative' } = {
-                '즉각적 호기심': 'friendly',
-                '문제 해결': 'expert',
-                '장기적 관심': 'informative',
-                '사회적 연결': 'friendly'
-            };
-            const tone = toneMap[topic.category] || 'informative';
-
             // generateBlogPost 함수 사용 - 구글일 때 자동으로 제목 5개, 해시태그, 이미지 프롬프트, 색상 테마 포함
             const result = await generateBlogPost(
                 topic.title,
                 topic.keywords,
                 topic.platform,
-                tone
+                options.tone,
+                options.contentFormat
             );
 
             setBlogPost({ ...result, platform: topic.platform });
         } catch (err) {
-            console.error('Error in handleGenerateBlogPostFromSustainable:', err);
+            console.error('Error in executeGenerateBlogPostFromSustainable:', err);
             if (err instanceof Error) {
                 setBlogPostError(err.message);
             } else {
@@ -500,6 +527,19 @@ const App: React.FC = () => {
 
     const handleGenerateBlogPostFromSerp = async (suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' }) => {
         console.log('handleGenerateBlogPostFromSerp called with:', suggestion);
+        setPendingBlogWrite({ type: 'serp', data: suggestion });
+        setIsBlogWritingModalOpen(true);
+    };
+
+    // SERP 실제 글쓰기 실행 함수
+    const executeGenerateBlogPostFromSerp = async (
+        suggestion: { title: string; thumbnailCopy: string; strategy: string; platform: 'naver' | 'google' },
+        options: {
+            contentFormat?: 'comparison' | 'listicle' | 'guide';
+            tone: 'friendly' | 'expert' | 'informative';
+        }
+    ) => {
+        console.log('executeGenerateBlogPostFromSerp called with:', suggestion, options);
         setSerpBlogPostLoading(true);
         setSerpBlogPostError(null);
         setSerpBlogPost(null);
@@ -520,7 +560,8 @@ const App: React.FC = () => {
                 suggestion.title,
                 keywords,
                 suggestion.platform,
-                'informative'
+                options.tone,
+                options.contentFormat
             );
 
             setSerpBlogPost({ ...result, platform: suggestion.platform });
@@ -536,6 +577,20 @@ const App: React.FC = () => {
     };
 
     const handleGenerateBlogPostFromPaa = async (paaItem: PaaItem & { platform: 'naver' | 'google' }) => {
+        console.log('handleGenerateBlogPostFromPaa called with:', paaItem);
+        setPendingBlogWrite({ type: 'paa', data: paaItem });
+        setIsBlogWritingModalOpen(true);
+    };
+
+    // PAA 실제 글쓰기 실행 함수
+    const executeGenerateBlogPostFromPaa = async (
+        paaItem: PaaItem & { platform: 'naver' | 'google' },
+        options: {
+            contentFormat?: 'comparison' | 'listicle' | 'guide';
+            tone: 'friendly' | 'expert' | 'informative';
+        }
+    ) => {
+        console.log('executeGenerateBlogPostFromPaa called with:', paaItem, options);
         setPaaBlogPostLoading(true);
         setPaaBlogPostError(null);
         setPaaBlogPost(null);
@@ -543,18 +598,19 @@ const App: React.FC = () => {
         try {
             // Better keyword extraction from question
             const keywords = [mainKeyword];
-            const questionWords = paaItem.question.replace(/[?]/g, '').split(' ').filter(word => 
+            const questionWords = paaItem.question.replace(/[?]/g, '').split(' ').filter(word =>
                 word.length > 2 && word !== mainKeyword &&
                 !['어떻게', '무엇', '왜', '언제', '어디', '누가', '어느', '얼마나'].includes(word)
             );
             keywords.push(...questionWords.slice(0, 4));
-            
+
             // Use question as the topic
             const result = await generateBlogPost(
                 paaItem.question,
                 keywords,
                 paaItem.platform,
-                'informative'
+                options.tone,
+                options.contentFormat
             );
 
             setPaaBlogPost({ ...result, platform: paaItem.platform });
@@ -1326,7 +1382,7 @@ const App: React.FC = () => {
                                             {/* 오늘의 글감 블로그 글쓰기 결과 */}
                                             {blogPostLoading && <LoadingSpinner />}
                                             {blogPostError && <ErrorMessage message={blogPostError} />}
-                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} htmlPreview={blogPost.htmlPreview} metadata={blogPost.metadata} />}
                                         </div>
                                     )}
 
@@ -1345,7 +1401,7 @@ const App: React.FC = () => {
                                                             {/* 경쟁력 분석 블로그 글쓰기 결과 */}
                                                             {blogPostLoading && <LoadingSpinner />}
                                                             {blogPostError && <ErrorMessage message={blogPostError} />}
-                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} htmlPreview={blogPost.htmlPreview} metadata={blogPost.metadata} />}
                                                         </div>
                                                     )}
                                                     {isBlogResults(results) && (
@@ -1358,7 +1414,7 @@ const App: React.FC = () => {
                                                             {/* Strategy 블로그 글쓰기 결과 - BlogStrategy 바로 아래에 표시 */}
                                                             {blogPostLoading && <LoadingSpinner />}
                                                             {blogPostError && <ErrorMessage message={blogPostError} />}
-                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} htmlPreview={blogPost.htmlPreview} metadata={blogPost.metadata} />}
                                                         </div>
                                                     )}
                                                     {isGoogleSerpResult(results) && (
@@ -1376,7 +1432,7 @@ const App: React.FC = () => {
                                                             {/* PAA 블로그 글쓰기 결과 - PAA 바로 아래에 표시 */}
                                                             {paaBlogPostLoading && <LoadingSpinner />}
                                                             {paaBlogPostError && <ErrorMessage message={paaBlogPostError} />}
-                                                            {paaBlogPost && <BlogPostDisplay title={paaBlogPost.title} content={paaBlogPost.content} format={paaBlogPost.format} platform={paaBlogPost.platform} schemaMarkup={paaBlogPost.schemaMarkup} />}
+                                                            {paaBlogPost && <BlogPostDisplay title={paaBlogPost.title} content={paaBlogPost.content} format={paaBlogPost.format} platform={paaBlogPost.platform} schemaMarkup={paaBlogPost.schemaMarkup} htmlPreview={paaBlogPost.htmlPreview} metadata={paaBlogPost.metadata} />}
                                                             
                                                             {serpStrategyLoading && <LoadingSpinner />}
                                                             {serpStrategyError && <ErrorMessage message={serpStrategyError} />}
@@ -1385,7 +1441,7 @@ const App: React.FC = () => {
                                                             {/* SERP 블로그 글쓰기 결과 - SERP 전략 바로 아래에 표시 */}
                                                             {serpBlogPostLoading && <LoadingSpinner />}
                                                             {serpBlogPostError && <ErrorMessage message={serpBlogPostError} />}
-                                                            {serpBlogPost && <BlogPostDisplay title={serpBlogPost.title} content={serpBlogPost.content} format={serpBlogPost.format} platform={serpBlogPost.platform} schemaMarkup={serpBlogPost.schemaMarkup} />}
+                                                            {serpBlogPost && <BlogPostDisplay title={serpBlogPost.title} content={serpBlogPost.content} format={serpBlogPost.format} platform={serpBlogPost.platform} schemaMarkup={serpBlogPost.schemaMarkup} htmlPreview={serpBlogPost.htmlPreview} metadata={serpBlogPost.metadata} />}
                                                         </div>
                                                     )}
                                                     {isKeywordResults(results) && (
@@ -1403,7 +1459,7 @@ const App: React.FC = () => {
                                                             {blogTopics && <BlogTopicSuggestions title={topicTitle} data={blogTopics} onGenerateBlogPost={handleGenerateBlogPost} />}
                                                             {blogPostLoading && <LoadingSpinner />}
                                                             {blogPostError && <ErrorMessage message={blogPostError} />}
-                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} htmlPreview={blogPost.htmlPreview} metadata={blogPost.metadata} />}
                                                         </div>
                                                     )}
                                                     {sustainableTopics && (
@@ -1416,7 +1472,7 @@ const App: React.FC = () => {
                                                             {/* 4차원 주제발굴 글쓰기 결과 */}
                                                             {blogPostLoading && <LoadingSpinner />}
                                                             {blogPostError && <ErrorMessage message={blogPostError} />}
-                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} />}
+                                                            {blogPost && <BlogPostDisplay title={blogPost.title} content={blogPost.content} format={blogPost.format} platform={blogPost.platform} schemaMarkup={blogPost.schemaMarkup} htmlPreview={blogPost.htmlPreview} metadata={blogPost.metadata} />}
                                                         </div>
                                                     )}
                                                 </>
@@ -1549,6 +1605,41 @@ const App: React.FC = () => {
                     }}
                 />
             )}
+
+            {/* 블로그 글쓰기 모달 */}
+            <BlogWritingModal
+                isOpen={isBlogWritingModalOpen}
+                onClose={() => {
+                    setIsBlogWritingModalOpen(false);
+                    setPendingBlogWrite(null);
+                }}
+                onConfirm={(options) => {
+                    setIsBlogWritingModalOpen(false);
+
+                    // pendingBlogWrite.type에 따라 적절한 executor 호출
+                    if (pendingBlogWrite) {
+                        switch (pendingBlogWrite.type) {
+                            case 'topic':
+                                executeGenerateBlogPost(pendingBlogWrite.data, options);
+                                break;
+                            case 'strategy':
+                                executeGenerateBlogPostFromStrategy(pendingBlogWrite.data, options);
+                                break;
+                            case 'sustainable':
+                                executeGenerateBlogPostFromSustainable(pendingBlogWrite.data, options);
+                                break;
+                            case 'serp':
+                                executeGenerateBlogPostFromSerp(pendingBlogWrite.data, options);
+                                break;
+                            case 'paa':
+                                executeGenerateBlogPostFromPaa(pendingBlogWrite.data, options);
+                                break;
+                        }
+                        setPendingBlogWrite(null);
+                    }
+                }}
+                platform={pendingBlogWrite?.data?.platform || 'naver'}
+            />
         </div>
     );
 };

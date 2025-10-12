@@ -1782,8 +1782,9 @@ export const generateTrendBlogPost = async (
     topic: string,
     keywords: string[],
     platform: 'naver' | 'google',
-    tone: 'friendly' | 'expert' | 'informative' = 'informative'
-): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
+    tone: 'friendly' | 'expert' | 'informative' = 'informative',
+    contentFormat?: 'comparison' | 'listicle' | 'guide'
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
@@ -1792,16 +1793,43 @@ export const generateTrendBlogPost = async (
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
     const toneMap = {
-        friendly: '친근하고 대화하는 듯한 톤',
-        expert: '전문가의 권위있는 톤',
-        informative: '객관적이고 정보 전달 중심의 톤'
+        friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
+        expert: '전문가의 논문체 톤 ("~바랍니다", "~것입니다", 데이터와 연구 인용, 심층 분석)',
+        informative: '객관적이고 중립적인 뉴스 기사 톤 ("~합니다", "~입니다" 격식체)'
+    };
+
+    // 구글용 형식 템플릿 및 지침 (네이버는 형식 구분 없음)
+    const formatTemplates = {
+        comparison: `비교 개요 → 비교 표 → 상세 분석 → 장단점 박스 → 추천`,
+        listicle: `리스트 소개 → 번호별 항목(핵심 포인트 포함) → 요약 표`,
+        guide: `가이드 소개 → 사전 준비 → 단계별 상세 설명 → 문제 해결 → 체크리스트`
+    };
+
+    const formatInstructions = {
+        comparison: `비교형 글 작성 지침: 두 옵션을 공정하게 비교하고, 비교 표를 활용하며, 각각의 장단점을 명확히 제시하고, 상황별 추천을 제공하세요.`,
+        listicle: `리스트형 글 작성 지침: 3-10개의 명확한 항목으로 구성하고, 각 항목에 번호와 소제목을 부여하며, 핵심 포인트를 먼저 제시하고, 요약 표로 한눈에 보이도록 정리하세요.`,
+        guide: `가이드형 글 작성 지침: 단계별로 명확한 순서를 제시하고, 각 단계의 목표를 명시하며, 실제 예시나 스크린샷 위치를 표시하고, 예상 문제와 해결책을 포함하며, 최종 체크리스트를 제공하세요.`
     };
 
     try {
+        // 구글용 형식 선택 (기본값: guide)
+        const selectedFormat = platform === 'google' && contentFormat ? contentFormat : 'guide';
+        const formatTemplate = platform === 'google' ? formatTemplates[selectedFormat] : '';
+        const formatInstruction = platform === 'google' ? formatInstructions[selectedFormat] : '';
+
+        // 테마 색상 선택
+        const selectedTheme = {
+            primary: '#1e40af',    // 파란색
+            secondary: '#dbeafe',  // 연한 파란색
+            accent: '#eff6ff'      // 매우 연한 파란색
+        };
+
         // 한 번의 API 호출로 최신 정보 검색과 블로그 생성을 동시에 수행
         const combinedPrompt = `
 당신은 실시간 트렌드 블로그 작성 전문가입니다.
 오늘은 ${formattedDate}입니다.
+
+**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
@@ -1824,10 +1852,156 @@ ${platform === 'naver' ? `
 ` : `
 구글 SEO 형식으로 작성:
 - 2500-3000자
-- HTML 형식
+- HTML 형식 ([TITLE]...[/TITLE], [CONTENT]...[/CONTENT] 태그 사용)
 - 구조화된 제목과 소제목
 - 최신 정보와 트렌드 포함
 - Featured Snippet 최적화
+
+**중요 HTML 스타일 지침 (반드시 준수):**
+1. 모든 텍스트 요소에 color 속성 명시 (기본: color: #333 또는 color: #1f2937)
+2. 테이블 셀(th, td)에 반드시 color: #333 또는 color: #1f2937 추가
+3. 모든 제목(h1, h2, h3)에 color: ${selectedTheme.primary} 적용
+4. 테이블 헤더(th)에 background-color와 color 모두 명시
+5. 테이블 셀(td)에 border, padding, color 모두 명시
+6. 위 템플릿의 HTML 구조와 인라인 스타일을 정확히 따를 것
+7. [CONTENT] 태그 안의 모든 HTML은 완전한 인라인 스타일 포함
+
+글 형식: ${selectedFormat === 'comparison' ? '⚖️ 비교형' : selectedFormat === 'listicle' ? '📋 리스트형' : '🎯 가이드형'}
+형식 구조: ${formatTemplate}
+${formatInstruction}
+
+${selectedFormat === 'comparison' ? `
+**비교형 HTML 템플릿 (반드시 이 구조를 따르세요):**
+
+<!-- 비교 개요 -->
+<div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+    <h2 style="color: ${selectedTheme.primary}; margin-top: 0;">[비교 제목]</h2>
+    <p style="margin: 0; font-size: 16px; color: #1f2937;">[비교할 두 옵션에 대한 간략한 소개와 비교의 필요성]</p>
+</div>
+
+<!-- 비교 표 -->
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #ffffff;">
+    <thead>
+        <tr>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">비교 항목</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">[옵션 A]</th>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">[옵션 B]</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937; font-weight: bold;">[비교 항목 1]</td>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[옵션 A 설명]</td>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[옵션 B 설명]</td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- 상세 분석 -->
+<h2 style="color: ${selectedTheme.primary}; margin-top: 30px;">[옵션 A] 상세 분석</h2>
+<p style="color: #333;">[옵션 A에 대한 자세한 설명과 특징]</p>
+
+<!-- 장단점 박스 -->
+<div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">✅ 장점</strong><br>
+    <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li style="color: #333;">[장점 1]</li>
+    </ul>
+</div>
+
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">❌ 단점</strong><br>
+    <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li style="color: #333;">[단점 1]</li>
+    </ul>
+</div>` : selectedFormat === 'listicle' ? `
+**리스트형 HTML 템플릿 (반드시 이 구조를 따르세요):**
+
+<!-- 리스트 소개 -->
+<div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+    <p style="margin: 0; font-size: 16px; color: #1f2937;">[이 리스트를 통해 독자가 얻을 수 있는 가치 설명]</p>
+</div>
+
+<!-- 항목 1 -->
+<h2 style="color: ${selectedTheme.primary};">1️⃣ [항목 1 제목]</h2>
+<p style="color: #333;">[항목 1에 대한 상세 설명]</p>
+
+<div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+    <p style="margin: 0 0 10px; font-weight: bold; color: #1f2937;">💡 핵심 포인트:</p>
+    <ul style="margin: 0 0 0 20px; padding: 0;">
+        <li style="margin-bottom: 8px; color: #333;">[포인트 1]</li>
+    </ul>
+</div>
+
+<!-- 요약 표 -->
+<h2 style="color: ${selectedTheme.primary}; margin-top: 30px;">📊 한눈에 보는 요약</h2>
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #ffffff;">
+    <thead>
+        <tr>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">순위</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">항목</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">주요 특징</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: #ffffff; font-weight: bold; color: ${selectedTheme.primary};">1</td>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[항목명]</td>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[핵심 특징]</td>
+        </tr>
+    </tbody>
+</table>` : `
+**가이드형 HTML 템플릿 (반드시 이 구조를 따르세요):**
+
+<!-- 가이드 소개 -->
+<div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+    <p style="margin: 0; font-size: 16px; color: #1f2937;">[이 가이드를 통해 무엇을 배울 수 있는지, 누구에게 유용한지 설명]</p>
+</div>
+
+<!-- 준비물/사전 요구사항 -->
+<div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">📦 준비물/사전 요구사항</strong><br>
+    <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li style="color: #333;">[준비물 1]</li>
+        <li style="color: #333;">[준비물 2]</li>
+    </ul>
+</div>
+
+<!-- 단계 1 -->
+<h2 style="color: ${selectedTheme.primary}; margin-top: 30px;">1단계: [단계 제목]</h2>
+<p style="margin-bottom: 15px; color: #333;">[이 단계에서 무엇을 하는지 설명]</p>
+
+<div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+    <p style="margin: 0 0 10px; font-weight: bold; color: #1f2937;">구체적인 방법:</p>
+    <ol style="margin: 0 0 0 20px; padding: 0;">
+        <li style="margin-bottom: 8px; color: #333;">[세부 단계 1]</li>
+        <li style="margin-bottom: 8px; color: #333;">[세부 단계 2]</li>
+    </ol>
+</div>
+
+<!-- 문제 해결 -->
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">⚠️ 자주 발생하는 문제와 해결책</strong><br>
+    <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li style="color: #333;"><strong>[문제]:</strong> [해결 방법]</li>
+    </ul>
+</div>`}
+
+**중요: 글 작성 후 반드시 아래 메타데이터도 함께 생성하세요:**
+
+[METADATA]
+{
+  "keywords": "${keywords.join(', ')}",
+  "imagePrompt": "[주제와 관련된 구체적이고 창의적인 이미지 생성 프롬프트를 한글로 작성. 예: ${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션, 파스텔 톤 색상, 깔끔한 배경, 전문적인 블로그 헤더 이미지 스타일]",
+  "seoTitles": [
+    "[60자 이내 SEO 최적화 제목 1]",
+    "[60자 이내 SEO 최적화 제목 2]",
+    "[60자 이내 SEO 최적화 제목 3]",
+    "[60자 이내 SEO 최적화 제목 4]",
+    "[60자 이내 SEO 최적화 제목 5]"
+  ]
+}
+[/METADATA]
 `}
 
 반드시 ${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일 기준 최신 정보를 반영하여 작성하세요.
@@ -1880,11 +2054,35 @@ ${platform === 'naver' ? `
                 schemaMarkup = schemaMarkup.replace(/```/g, '');
             }
 
+            // Metadata 파싱 (구글 전용)
+            let metadata = undefined;
+            const metadataMatch = text.match(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/);
+            if (metadataMatch) {
+                try {
+                    const metadataText = metadataMatch[1].trim();
+                    const parsedMetadata = JSON.parse(metadataText);
+                    metadata = {
+                        keywords: parsedMetadata.keywords || keywords.join(', '),
+                        imagePrompt: parsedMetadata.imagePrompt || '',
+                        seoTitles: parsedMetadata.seoTitles || []
+                    };
+                } catch (e) {
+                    console.error('Metadata parsing error:', e);
+                    // 파싱 실패 시 기본값 사용
+                    metadata = {
+                        keywords: keywords.join(', '),
+                        imagePrompt: `${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션`,
+                        seoTitles: [title]
+                    };
+                }
+            }
+
             return {
                 title,
                 content,
                 format: 'html',
-                schemaMarkup
+                schemaMarkup,
+                metadata
             };
         }
 
@@ -1892,7 +2090,7 @@ ${platform === 'naver' ? `
         console.error('트렌드 블로그 생성 중 오류:', error);
         console.log('일반 블로그 생성으로 폴백합니다.');
         // 오류 발생시 일반 블로그 생성 함수 사용
-        return generateBlogPost(topic, keywords, platform, tone);
+        return generateBlogPost(topic, keywords, platform, tone, contentFormat);
     }
 };
 
@@ -1903,7 +2101,7 @@ const generateBlogPostWithNews = async (
     platform: 'naver' | 'google',
     tone: 'friendly' | 'expert' | 'informative',
     newsInfo: any
-): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
@@ -1911,15 +2109,24 @@ const generateBlogPostWithNews = async (
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
     const toneMap = {
-        friendly: '친근하고 대화하는 듯한 톤',
-        expert: '전문가의 권위있는 톤',
-        informative: '객관적이고 정보 전달 중심의 톤'
+        friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
+        expert: '전문가의 논문체 톤 ("~바랍니다", "~것입니다", 데이터와 연구 인용, 심층 분석)',
+        informative: '객관적이고 중립적인 뉴스 기사 톤 ("~합니다", "~입니다" 격식체)'
+    };
+
+    // 테마 색상 정의 (구글 SEO용)
+    const selectedTheme = {
+        primary: '#1e40af',    // 파란색
+        secondary: '#dbeafe',  // 연한 파란색
+        accent: '#eff6ff'      // 매우 연한 파란색
     };
 
     // 실제 뉴스 정보를 포함한 프롬프트 생성
     const enhancedPrompt = `
 당신은 실시간 트렌드 블로그 작성 전문가입니다.
 오늘은 ${formattedDate}입니다.
+
+**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
@@ -1949,9 +2156,68 @@ ${platform === 'naver' ? `
 ` : `
 구글 SEO 형식:
 - 2500-3000자
-- HTML 형식
+- HTML 형식 ([TITLE]...[/TITLE], [CONTENT]...[/CONTENT] 태그 사용)
 - 구조화된 제목과 소제목
 - Schema markup 포함
+
+**중요 HTML 스타일 지침 (반드시 준수):**
+1. 모든 텍스트 요소에 color 속성 명시 (기본: color: #333 또는 color: #1f2937)
+2. 테이블 셀(th, td)에 반드시 color: #333 또는 color: #1f2937 추가
+3. 모든 제목(h1, h2, h3)에 color: ${selectedTheme.primary} 적용
+4. 테이블 헤더(th)에 background-color와 color 모두 명시
+5. 테이블 셀(td)에 border, padding, color 모두 명시
+6. 위 템플릿의 HTML 구조와 인라인 스타일을 정확히 따를 것
+7. [CONTENT] 태그 안의 모든 HTML은 완전한 인라인 스타일 포함
+
+**뉴스 기사 HTML 템플릿 (반드시 이 구조를 따르세요):**
+
+<div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">📰 핵심 뉴스 요약</strong><br>
+    <ul style="margin: 10px 0 0 20px; padding: 0;">
+        <li style="color: #333;">[핵심 사실 1]</li>
+        <li style="color: #333;">[핵심 사실 2]</li>
+        <li style="color: #333;">[핵심 사실 3]</li>
+    </ul>
+</div>
+
+<h2 style="color: ${selectedTheme.primary}; margin-top: 30px;">오늘의 주요 이슈</h2>
+<p style="margin-bottom: 15px; color: #333;">[실시간 뉴스 내용 상세 설명]</p>
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #ffffff;">
+    <thead>
+        <tr>
+            <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">시간</th>
+            <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">주요 내용</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[시간]</td>
+            <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[내용]</td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="background-color: ${selectedTheme.accent}; border-left: 4px solid ${selectedTheme.primary}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <strong style="color: #1f2937;">💬 대중 반응</strong><br>
+    <p style="margin: 10px 0 0 0; color: #333;">[대중의 반응과 의견]</p>
+</div>
+
+**중요: 글 작성 후 반드시 아래 메타데이터도 함께 생성하세요:**
+
+[METADATA]
+{
+  "keywords": "${keywords.join(', ')}",
+  "imagePrompt": "[주제와 관련된 구체적이고 창의적인 이미지 생성 프롬프트를 한글로 작성]",
+  "seoTitles": [
+    "[60자 이내 SEO 최적화 제목 1]",
+    "[60자 이내 SEO 최적화 제목 2]",
+    "[60자 이내 SEO 최적화 제목 3]",
+    "[60자 이내 SEO 최적화 제목 4]",
+    "[60자 이내 SEO 최적화 제목 5]"
+  ]
+}
+[/METADATA]
 `}
 
 실제 뉴스 정보를 충실히 반영하여 작성해주세요.
@@ -1983,11 +2249,34 @@ ${platform === 'naver' ? `
         if (contentMatch) content = contentMatch[1].trim();
         if (schemaMatch) schemaMarkup = schemaMatch[1].trim();
 
+        // Metadata 파싱 (구글 전용)
+        let metadata = undefined;
+        const metadataMatch = text.match(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/);
+        if (metadataMatch) {
+            try {
+                const metadataText = metadataMatch[1].trim();
+                const parsedMetadata = JSON.parse(metadataText);
+                metadata = {
+                    keywords: parsedMetadata.keywords || keywords.join(', '),
+                    imagePrompt: parsedMetadata.imagePrompt || '',
+                    seoTitles: parsedMetadata.seoTitles || []
+                };
+            } catch (e) {
+                console.error('Metadata parsing error:', e);
+                metadata = {
+                    keywords: keywords.join(', '),
+                    imagePrompt: `${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션`,
+                    seoTitles: [title]
+                };
+            }
+        }
+
         return {
             title,
             content,
             format: 'html',
-            schemaMarkup
+            schemaMarkup,
+            metadata
         };
     }
 };
@@ -1996,15 +2285,16 @@ export const generateBlogPost = async (
     topic: string,
     keywords: string[],
     platform: 'naver' | 'google',
-    tone: 'friendly' | 'expert' | 'informative' = 'informative'
-): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string }> => {
+    tone: 'friendly' | 'expert' | 'informative' = 'informative',
+    contentFormat?: 'comparison' | 'listicle' | 'guide'
+): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const toneMap = {
-        friendly: '친근하고 대화하는 듯한 톤',
-        expert: '전문가의 권위있는 톤',
-        informative: '객관적이고 정보 전달 중심의 톤'
+        friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
+        expert: '전문가의 논문체 톤 ("~바랍니다", "~것입니다", 데이터와 연구 인용, 심층 분석)',
+        informative: '객관적이고 중립적인 뉴스 기사 톤 ("~합니다", "~입니다" 격식체)'
     };
 
     // 네이버 블로그 테마 정의
@@ -2059,55 +2349,104 @@ export const generateBlogPost = async (
         prompt = `
 당신은 네이버 블로그 SEO 전문가입니다. C-rank와 DIA 로직을 완벽히 이해하고 있습니다.
 
+**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
+
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
 
 ## 선택된 테마: ${selectedNaverTheme.name}
+- 테마 색상: ${selectedNaverTheme.htmlColor}
 - 구분선: ${selectedNaverTheme.divider}
 - 글머리: ${selectedNaverTheme.bullet}
 - 강조: ${selectedNaverTheme.highlight}
 - 소제목: ${selectedNaverTheme.subheader}
 
-네이버 블로그용 글을 일반 텍스트 형식으로 작성해주세요:
+네이버 블로그용 글을 HTML 형식으로 작성해주세요.
 
-1. 글 구조 (테마 적용):
-   - 매력적인 제목에 ${selectedNaverTheme.highlight} 포함
-   - 도입부: 흥미로운 질문이나 통계로 시작
-   - 본문: 3-4개의 소제목으로 구분
-   - 각 소제목은 ${selectedNaverTheme.subheader} 기호로 표시
-   - 중요 내용은 ${selectedNaverTheme.bullet} 로 강조
-   - 섹션 구분선: ${selectedNaverTheme.divider}
-   - 마무리: 핵심 요약과 행동 유도
+**출력 형식:**
+[TITLE]
+SEO 최적화된 제목 (키워드 포함)
+[/TITLE]
 
-2. C-rank 최적화:
-   - 키워드를 자연스럽게 포함
-   - 키워드 밀도 3-5% 유지
+[CONTENT]
+<div style="font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; line-height: 1.8; color: #333; font-size: 15px;">
+
+    <!-- 제목 -->
+    <h1 style="font-size: 26px; font-weight: bold; color: ${selectedNaverTheme.htmlColor}; margin-bottom: 20px; border-bottom: 3px solid ${selectedNaverTheme.htmlColor}; padding-bottom: 10px;">
+        ${selectedNaverTheme.highlight} [매력적인 제목]
+    </h1>
+
+    <!-- 도입부 -->
+    <p style="margin-bottom: 15px; line-height: 1.8;">[흥미로운 질문이나 통계로 시작하는 도입부]</p>
+
+    <!-- 구분선 -->
+    <p style="text-align: center; color: ${selectedNaverTheme.htmlColor}; font-size: 20px; margin: 25px 0;">
+        ${selectedNaverTheme.divider}
+    </p>
+
+    <!-- 소제목 1 -->
+    <h2 style="font-size: 20px; font-weight: bold; color: ${selectedNaverTheme.htmlColor}; margin: 25px 0 15px; padding: 10px; background: linear-gradient(90deg, ${selectedNaverTheme.htmlColor}15 0%, transparent 100%); border-left: 4px solid ${selectedNaverTheme.htmlColor};">
+        ${selectedNaverTheme.subheader} [소제목 1]
+    </h2>
+
+    <p style="margin-bottom: 15px; line-height: 1.8;">[본문 내용]</p>
+
+    <!-- 강조 포인트 -->
+    <div style="background-color: #f8f9fa; border-left: 4px solid ${selectedNaverTheme.htmlColor}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0; line-height: 1.8;">
+            <strong style="color: ${selectedNaverTheme.htmlColor};">${selectedNaverTheme.bullet} 핵심 포인트:</strong> [중요한 내용]
+        </p>
+    </div>
+
+    <!-- 이미지 플레이스홀더 -->
+    <div style="background: linear-gradient(135deg, ${selectedNaverTheme.htmlColor}20 0%, ${selectedNaverTheme.htmlColor}10 100%); border: 2px dashed ${selectedNaverTheme.htmlColor}; border-radius: 10px; padding: 30px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0; color: ${selectedNaverTheme.htmlColor}; font-weight: bold;">📷 [이미지: 설명]</p>
+        <p style="margin: 5px 0 0; font-size: 13px; color: #666;">※ 이 위치에 이미지를 삽입하세요</p>
+    </div>
+
+    <!-- 마무리 -->
+    <div style="background-color: ${selectedNaverTheme.htmlColor}10; padding: 20px; border-radius: 10px; margin-top: 30px;">
+        <p style="margin: 0; line-height: 1.8; font-weight: 500;">[핵심 요약과 행동 유도]</p>
+    </div>
+
+</div>
+[/CONTENT]
+
+**작성 가이드:**
+
+1. **글 구조 (테마 적용):**
+   - 제목, 소제목, 강조 부분에 테마 색상(${selectedNaverTheme.htmlColor}) 사용
+   - 이모지(${selectedNaverTheme.highlight}, ${selectedNaverTheme.subheader}, ${selectedNaverTheme.bullet}) 적절히 배치
+   - 3-4개의 소제목으로 본문 구성
+   - 각 섹션마다 구분선(${selectedNaverTheme.divider}) 사용
+
+2. **C-rank 최적화:**
+   - 키워드를 자연스럽게 포함 (밀도 3-5%)
    - 사용자 체류시간 증가를 위한 스토리텔링
 
-3. DIA(Deep Intent Analysis) 로직:
+3. **DIA(Deep Intent Analysis) 로직:**
    - 실제 데이터와 통계 포함
    - 유용한 정보 체계적 전달
    - 검색 의도에 대한 명확한 답변
-   - 개인적 경험과 전문 정보의 균형
 
-4. 작성 스타일:
-   - 친근하고 대화체 문장
+4. **작성 스타일:**
+   - 친근하고 대화체 ("~했어요", "~더라고요")
    - 짧고 읽기 쉬운 문단 (3-4줄)
-   - 이모티콘은 절제 (문단당 최대 1개)
-   - "~했어요", "~더라고요" 같은 자연스러운 어미 사용
+   - 이모티콘 절제 (문단당 최대 1개)
 
-5. 이미지 위치 표시: [이미지: 설명]
+5. **HTML 스타일:**
+   - 인라인 스타일만 사용 (외부 CSS 금지)
+   - 네이버 블로그에 복사/붙여넣기 가능한 형식
+   - 굵기, 색상, 크기 모두 style 속성으로 지정
 
-6. 총 1800-2000자로 작성
+6. **총 1800-2000자로 작성**
 
-중요:
-- 일반 텍스트 형식으로 작성 (HTML 태그 사용 금지)
-- 네이버 블로그 에디터에 바로 붙여넣을 수 있는 형식
-- 줄바꿈과 문단 구분 명확히
-- 테마 이모지와 특수문자를 적절히 활용
-
-일반 텍스트 형식으로 작성하세요.
+**중요:**
+- HTML 형식으로 작성하되, 네이버 블로그 복사/붙여넣기 호환 유지
+- **절대 C-rank, DIA, SEO 알고리즘 같은 용어를 글 내용에 언급하지 마세요**
+- **주제(${topic})에만 집중하여 자연스러운 블로그 글을 작성하세요**
+- 이미지 플레이스홀더는 시각적으로 눈에 띄게 표시
         `.trim();
     } else {
         // Google SEO with GEMS Guidelines and Random Theme
@@ -2126,15 +2465,215 @@ export const generateBlogPost = async (
 
         const selectedTheme = themes[Math.floor(Math.random() * themes.length)];
 
+        // 형식별 구조 템플릿
+        const formatTemplates = {
+            comparison: `
+    <!-- 비교 개요 섹션 -->
+    <div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 0 0 15px;">⚖️ 비교 개요</h2>
+        <p style="margin: 0; color: #1f2937;">[두 옵션/제품/방법을 간단히 소개하고 비교의 필요성 설명]</p>
+    </div>
+
+    <!-- 비교 표 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>📊 핵심 비교</strong>
+    </h2>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #ffffff;">
+        <thead>
+            <tr>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">비교 항목</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">[옵션 A]</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">[옵션 B]</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937; font-weight: bold;">[비교 항목 1]</td>
+                <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[옵션 A 설명]</td>
+                <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[옵션 B 설명]</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 상세 비교 섹션 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>🔍 상세 비교 분석</strong>
+    </h2>
+    <h3 style="font-size: 18px; color: #333; margin: 20px 0 10px;">1. [비교 기준 1]</h3>
+    <p style="margin-bottom: 15px; color: #333;">[상세 설명]</p>
+
+    <!-- 장단점 박스 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0;">
+        <div style="border: 2px solid #4caf50; padding: 15px; border-radius: 8px;">
+            <h4 style="color: #4caf50; margin: 0 0 10px; font-size: 16px;">✅ [옵션 A] 장점</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li style="color: #333;">[장점 1]</li>
+            </ul>
+        </div>
+        <div style="border: 2px solid #f44336; padding: 15px; border-radius: 8px;">
+            <h4 style="color: #f44336; margin: 0 0 10px; font-size: 16px;">❌ [옵션 A] 단점</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li style="color: #333;">[단점 1]</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 추천 결론 -->
+    <div style="background-color: ${selectedTheme.secondary}; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <h2 style="font-size: 20px; color: ${selectedTheme.primary}; margin: 0 0 10px;">💡 어떤 것을 선택해야 할까요?</h2>
+        <p style="margin-bottom: 10px; color: #1f2937;"><strong>[옵션 A]를 선택해야 하는 경우:</strong></p>
+        <ul style="margin: 0 0 15px 20px;">
+            <li style="color: #333;">[상황 1]</li>
+        </ul>
+        <p style="margin-bottom: 10px; color: #1f2937;"><strong>[옵션 B]를 선택해야 하는 경우:</strong></p>
+        <ul style="margin: 0 0 0 20px;">
+            <li style="color: #333;">[상황 1]</li>
+        </ul>
+    </div>`,
+            listicle: `
+    <!-- 리스트 소개 -->
+    <div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <p style="margin: 0; font-size: 16px; color: #1f2937;">[이 리스트가 왜 유용한지, 어떤 기준으로 선정했는지 설명]</p>
+    </div>
+
+    <!-- 리스트 아이템 1 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>1️⃣ [첫 번째 항목 제목]</strong>
+    </h2>
+    <p style="margin-bottom: 15px; color: #333;">[항목에 대한 상세한 설명과 이유]</p>
+
+    <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid ${selectedTheme.primary}; margin: 15px 0; border-radius: 0 8px 8px 0;">
+        <p style="margin: 0; color: #1f2937;"><strong>💡 핵심 포인트:</strong> [이 항목의 가장 중요한 특징이나 장점]</p>
+    </div>
+
+    <!-- 리스트 아이템 2 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>2️⃣ [두 번째 항목 제목]</strong>
+    </h2>
+    <p style="margin-bottom: 15px;">[항목에 대한 상세한 설명과 이유]</p>
+
+    <!-- 요약 표 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>📋 한눈에 보는 요약</strong>
+    </h2>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #ffffff;">
+        <thead>
+            <tr>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">순위</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">항목</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; color: #1f2937; font-weight: bold;">주요 특징</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 12px; text-align: center; border: 1px solid #ddd; background-color: #ffffff; font-weight: bold; color: ${selectedTheme.primary};">1</td>
+                <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[항목명]</td>
+                <td style="padding: 12px; border: 1px solid #ddd; background-color: #ffffff; color: #1f2937;">[핵심 특징]</td>
+            </tr>
+        </tbody>
+    </table>`,
+            guide: `
+    <!-- 가이드 소개 -->
+    <div style="background-color: ${selectedTheme.accent}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <p style="margin: 0; font-size: 16px; color: #1f2937;">[이 가이드를 통해 무엇을 배울 수 있는지, 누구에게 유용한지 설명]</p>
+    </div>
+
+    <!-- 준비물/사전 요구사항 -->
+    <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+        <strong style="color: #1f2937;">📦 준비물/사전 요구사항</strong><br>
+        <ul style="margin: 10px 0 0 20px; padding: 0;">
+            <li style="color: #333;">[준비물 1]</li>
+            <li style="color: #333;">[준비물 2]</li>
+        </ul>
+    </div>
+
+    <!-- 단계 1 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>1단계: [단계 제목]</strong> 🎯
+    </h2>
+    <p style="margin-bottom: 15px; color: #333;">[이 단계에서 무엇을 하는지 설명]</p>
+
+    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <p style="margin: 0 0 10px; font-weight: bold; color: #1f2937;">구체적인 방법:</p>
+        <ol style="margin: 0 0 0 20px; padding: 0;">
+            <li style="margin-bottom: 8px; color: #333;">[세부 단계 1]</li>
+            <li style="margin-bottom: 8px; color: #333;">[세부 단계 2]</li>
+        </ol>
+    </div>
+
+    <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0;">
+        <strong style="color: #1f2937;">💡 팁:</strong> <span style="color: #333;">[이 단계에서 유용한 팁이나 주의사항]</span>
+    </div>
+
+    <!-- 단계 2 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>2단계: [단계 제목]</strong> 🔧
+    </h2>
+    <p style="margin-bottom: 15px;">[이 단계에서 무엇을 하는지 설명]</p>
+
+    <!-- 문제 해결 섹션 -->
+    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
+        <strong>⚠️ 흔한 문제와 해결 방법</strong>
+    </h2>
+
+    <div style="background-color: #ffebee; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <p style="margin: 0 0 10px; font-weight: bold; color: #d32f2f;">문제: [흔한 문제 상황]</p>
+        <p style="margin: 0; color: #333;"><strong>해결:</strong> [구체적인 해결 방법]</p>
+    </div>
+
+    <!-- 체크리스트 -->
+    <div style="background-color: ${selectedTheme.secondary}; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <h2 style="font-size: 20px; color: ${selectedTheme.primary}; margin: 0 0 10px;">✅ 완료 체크리스트</h2>
+        <ul style="margin: 0 0 0 20px; padding: 0; list-style: none;">
+            <li style="margin-bottom: 8px;">☐ [체크 항목 1]</li>
+            <li style="margin-bottom: 8px;">☐ [체크 항목 2]</li>
+        </ul>
+    </div>`
+        };
+
+        const formatInstructions = {
+            comparison: `
+비교형 글 작성 지침:
+- 두 옵션/제품/방법을 공정하게 비교
+- 비교 표를 활용하여 항목별로 명확히 대조
+- 각 옵션의 장단점을 균형있게 제시
+- 상황별 추천을 명확히 제공
+- 객관적인 데이터와 사실 기반 비교`,
+            listicle: `
+리스트형 글 작성 지침:
+- 3-10개의 명확한 항목으로 구성
+- 각 항목은 숫자 이모지(1️⃣, 2️⃣)로 시작
+- 항목별 핵심 포인트 박스 포함
+- 마지막에 요약 표로 한눈에 정리
+- 항목 순서는 중요도/인기도/난이도 순으로 배치`,
+            guide: `
+가이드형 글 작성 지침:
+- 단계별로 명확한 순서 제시 (1단계, 2단계...)
+- 각 단계마다 구체적인 실행 방법 포함
+- 준비물/사전 요구사항 명시
+- 각 단계마다 팁과 주의사항 추가
+- 흔한 문제와 해결 방법 섹션 포함
+- 완료 체크리스트로 마무리`
+        };
+
+        const selectedFormat = contentFormat || 'guide'; // 기본값은 가이드형
+        const formatTemplate = formatTemplates[selectedFormat];
+        const formatInstruction = formatInstructions[selectedFormat];
+
         prompt = `
 당신은 구글 SEO 전문가이자 GEMS 가이드라인을 완벽히 이해하는 콘텐츠 크리에이터입니다.
+
+**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
 
 **반드시 데스크톱 버전의 Google 검색을 사용하여 정보를 검색하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
+글 형식: ${selectedFormat === 'comparison' ? '비교형' : selectedFormat === 'listicle' ? '리스트형' : '가이드형'}
 선택된 테마: ${selectedTheme.name} (Primary: ${selectedTheme.primary}, Secondary: ${selectedTheme.secondary})
+
+${formatInstruction}
 
 GEMS 가이드라인에 따라 전문적이고 시각적인 구글 SEO 최적화 블로그 글을 작성해주세요.
 
@@ -2148,49 +2687,17 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
 <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; font-size: 16px; box-sizing: border-box;">
 
     <!-- 메타설명 박스 -->
-    <div style="background-color: ${selectedTheme.secondary}; padding: 15px; border-radius: 8px; font-style: italic; margin-bottom: 25px; font-size: 15px;">
+    <div style="background-color: ${selectedTheme.secondary}; padding: 15px; border-radius: 8px; font-style: italic; margin-bottom: 25px; font-size: 15px; color: #1f2937;">
         <strong>[핵심 질문/키워드]</strong> [독자의 호기심을 자극하는 1-2문장]
     </div>
 
     <!-- 도입부 -->
-    <p style="margin-bottom: 15px;">[개인적 경험이나 공감대 형성, 문제 제기, 해결책 암시, 적절한 이모티콘 😊]</p>
+    <p style="margin-bottom: 15px; color: #333;">[개인적 경험이나 공감대 형성, 문제 제기, 해결책 암시, 적절한 이모티콘 😊]</p>
 
     <!-- 섹션 간 여백 -->
     <p data-ke-size="size16">&nbsp;</p>
 
-    <!-- 첫 번째 주요 섹션 -->
-    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
-        <strong>[섹션 제목]</strong> [관련 이모티콘]
-    </h2>
-
-    <p style="margin-bottom: 15px;">[내용 - 일상 대화체, 전문용어는 쉽게 설명]</p>
-
-    <!-- 팁 박스 -->
-    <div style="background-color: ${selectedTheme.accent}; border-left: 4px solid ${selectedTheme.primary}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-        <strong>💡 알아두세요!</strong><br>
-        [중요한 팁이나 정보]
-    </div>
-
-    <!-- 두 번째 주요 섹션 -->
-    <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
-        <strong>[섹션 제목]</strong> 📊
-    </h2>
-
-    <p style="margin-bottom: 15px;">[내용] <span style="background-color: #fffde7; padding: 2px 4px; border-radius: 3px;">[강조할 키워드]</span></p>
-
-    <!-- 표 -->
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-        <thead>
-            <tr>
-                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; background-color: ${selectedTheme.secondary}; font-weight: bold;">[열 제목]</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td style="padding: 12px; text-align: left; border: 1px solid #ddd;">[내용]</td>
-            </tr>
-        </tbody>
-    </table>
+${formatTemplate}
 
     <!-- FAQ 섹션 -->
     <h2 style="font-size: 22px; color: ${selectedTheme.primary}; margin: 30px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #eaeaea;">
@@ -2198,46 +2705,25 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
     </h2>
 
     <h3 style="font-size: 18px; color: #333; margin: 20px 0 10px;">[질문 1]</h3>
-    <p style="margin-bottom: 15px;">[답변]</p>
+    <p style="margin-bottom: 15px; color: #333;">[답변]</p>
 
-    <!-- 결론 -->
-    <div style="background-color: ${selectedTheme.secondary}; padding: 20px; border-radius: 8px; margin-top: 30px;">
-        <h2 style="font-size: 20px; color: ${selectedTheme.primary}; margin: 0 0 10px;">핵심 정리 📝</h2>
-        <ol style="margin: 0 0 15px 20px; padding: 0;">
-            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 1]</strong></li>
-            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 2]</strong></li>
-            <li style="margin-bottom: 8px;"><strong>[핵심 포인트 3]</strong></li>
-        </ol>
-    </div>
-
-    <!-- 추가 정보 섹션 -->
-    <div style="border-top: 1px dashed #ddd; margin: 30px 0; padding-top: 20px;">
-        <h3 style="font-size: 18px; color: #333; margin: 15px 0;">📌 추가 정보</h3>
-
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <p style="margin-bottom: 10px;"><strong>🔍 핵심 키워드:</strong></p>
-            <p style="margin: 0; color: #555;">${keywords.join(', ')}</p>
-        </div>
-
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <p style="margin-bottom: 10px;"><strong>🎨 이미지 생성 프롬프트 (Midjourney/DALL-E):</strong></p>
-            <p style="margin: 0; color: #555; font-style: italic;">[주제와 관련된 구체적이고 창의적인 이미지 생성 프롬프트를 한글로 작성. 예: "${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션, 파스텔 톤 색상, 깔끔한 배경, 전문적인 블로그 헤더 이미지 스타일"]</p>
-        </div>
-
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <p style="margin-bottom: 10px;"><strong>📝 SEO 최적 제목 제안 (5개):</strong></p>
-            <ol style="margin: 0 0 0 20px; padding: 0;">
-                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 1]</li>
-                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 2]</li>
-                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 3]</li>
-                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 4]</li>
-                <li style="margin-bottom: 5px;">[60자 이내 SEO 최적화 제목 5]</li>
-            </ol>
-        </div>
-    </div>
 
 </div>
 [/CONTENT]
+
+[METADATA]
+{
+  "keywords": "${keywords.join(', ')}",
+  "imagePrompt": "[주제와 관련된 구체적이고 창의적인 이미지 생성 프롬프트를 한글로 작성. 예: ${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션, 파스텔 톤 색상, 깔끔한 배경, 전문적인 블로그 헤더 이미지 스타일]",
+  "seoTitles": [
+    "[60자 이내 SEO 최적화 제목 1]",
+    "[60자 이내 SEO 최적화 제목 2]",
+    "[60자 이내 SEO 최적화 제목 3]",
+    "[60자 이내 SEO 최적화 제목 4]",
+    "[60자 이내 SEO 최적화 제목 5]"
+  ]
+}
+[/METADATA]
 
 작성 요구사항:
 1. 총 2500-3000자로 작성 (한글 기준)
@@ -2245,9 +2731,18 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
 3. Featured Snippet을 위한 직접적인 답변 포함
 4. 테이블과 리스트를 적극 활용
 5. LSI 키워드 자연스럽게 포함
-6. 친근하면서도 전문적인 톤 유지
+6. ${toneMap[tone]}으로 일관되게 작성
 7. 적절한 이모티콘으로 친근감 추가
 8. 시각적 구분을 위한 박스와 하이라이트 활용
+
+**중요 HTML 스타일 지침 (반드시 준수):**
+1. 모든 텍스트 요소에 color 속성 명시 (기본: color: #333 또는 color: #1f2937)
+2. 테이블 셀(th, td)에 반드시 color: #333 또는 color: #1f2937 추가
+3. 모든 제목(h1, h2, h3)에 color: ${selectedTheme.primary} 적용
+4. 테이블 헤더(th)에 background-color와 color 모두 명시
+5. 테이블 셀(td)에 border, padding, color 모두 명시
+6. 위 템플릿의 HTML 구조와 인라인 스타일을 정확히 따를 것
+7. [CONTENT] 태그 안의 모든 HTML은 완전한 인라인 스타일 포함
 
 반드시 데스크톱 검색 결과를 기반으로 작성하세요.
         `.trim();
@@ -2264,24 +2759,18 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
         let title = '';
         let finalContent = content;
 
-        if (platform === 'naver') {
-            // 네이버는 그대로 사용
-            const titleMatch = content.match(/^(.+)$/m);
-            title = titleMatch ? titleMatch[1] : topic;
-        } else {
-            // 구글용 파싱
-            const titleMatch = content.match(/\[TITLE\]([\s\S]*?)\[\/TITLE\]/);
-            const contentMatch = content.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
+        // 네이버와 구글 모두 [TITLE], [CONTENT] 형식 사용
+        const titleMatch = content.match(/\[TITLE\]([\s\S]*?)\[\/TITLE\]/);
+        const contentMatch = content.match(/\[CONTENT\]([\s\S]*?)\[\/CONTENT\]/);
 
-            if (titleMatch && contentMatch) {
-                title = titleMatch[1].trim();
-                finalContent = contentMatch[1].trim();
-            } else {
-                // 구형 포맷 처리 (폴백)
-                const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/);
-                title = h1Match ? h1Match[1].replace(/<[^>]+>/g, '') : topic;
-                finalContent = content;
-            }
+        if (titleMatch && contentMatch) {
+            title = titleMatch[1].trim();
+            finalContent = contentMatch[1].trim();
+        } else {
+            // 구형 포맷 처리 (폴백)
+            const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/);
+            title = h1Match ? h1Match[1].replace(/<[^>]+>/g, '') : topic;
+            finalContent = content;
         }
 
         // Schema Markup 생성 (Google용)
@@ -2418,12 +2907,38 @@ SEO 최적화된 제목 (60자 이내, 키워드 포함)
             `.trim();
         }
 
+        // Metadata 파싱 (구글 전용)
+        let metadata = undefined;
+        if (platform === 'google') {
+            const metadataMatch = content.match(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/);
+            if (metadataMatch) {
+                try {
+                    const metadataText = metadataMatch[1].trim();
+                    const parsedMetadata = JSON.parse(metadataText);
+                    metadata = {
+                        keywords: parsedMetadata.keywords || keywords.join(', '),
+                        imagePrompt: parsedMetadata.imagePrompt || '',
+                        seoTitles: parsedMetadata.seoTitles || []
+                    };
+                } catch (e) {
+                    console.error('Metadata parsing error:', e);
+                    // 파싱 실패 시 기본값 사용
+                    metadata = {
+                        keywords: keywords.join(', '),
+                        imagePrompt: `${topic}을 표현하는 현대적이고 미니멀한 일러스트레이션`,
+                        seoTitles: [title]
+                    };
+                }
+            }
+        }
+
         return {
             title,
             content: finalContent,
-            format: platform === 'naver' ? 'text' : 'html',
+            format: 'html', // 네이버와 구글 모두 HTML 형식 사용
             schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
-            htmlPreview: htmlPreview || undefined
+            htmlPreview: htmlPreview || undefined,
+            metadata
         };
     } catch (error) {
         if (error instanceof Error) {
