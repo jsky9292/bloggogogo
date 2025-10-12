@@ -26,6 +26,7 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import BlogWritingModal from './components/BlogWritingModal';
+import VideoTutorials from './components/VideoTutorials';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost, generateTrendBlogPost } from './services/keywordService';
 import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
@@ -129,6 +130,7 @@ const App: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
     const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+    const [isVideoTutorialsOpen, setIsVideoTutorialsOpen] = useState(false);
     const [adminRefreshTrigger, setAdminRefreshTrigger] = useState(0);
     const [currentUser, setCurrentUser] = useState<any>(() => {
         const saved = localStorage.getItem('user');
@@ -1003,39 +1005,25 @@ const App: React.FC = () => {
                     
                     {/* Logo Section */}
                     <div style={{
-                        padding: '0.5rem 1rem',  // 세로 padding 더 줄임 (1rem -> 0.5rem)
+                        padding: '1.5rem',
                         borderBottom: '1px solid #e2e8f0',
-                        textAlign: 'center',
-                        background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)'
+                        background: '#ffffff'
                     }}>
-                        <div style={{
-                            display: 'inline-block',
-                            background: 'rgba(255, 255, 255, 0.95)',
-                            padding: '0.25rem 0.75rem',  // padding 줄임 (0.4rem 1rem -> 0.25rem 0.75rem)
-                            borderRadius: '50px',
-                            marginBottom: '0.5rem',  // margin 줄임 (0.75rem -> 0.5rem)
-                            fontSize: '0.7rem',  // 폰트 크기 줄임 (0.75rem -> 0.7rem)
-                            fontWeight: '600',
-                            color: '#667eea',
-                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.2)'
-                        }}>
-                            ✨ Professional SEO Tool
-                        </div>
-                        
                         <h1 style={{
-                            fontSize: '1.25rem',  // 폰트 크기 더 줄임 (1.5rem -> 1.25rem)
-                            fontWeight: '800',
-                            margin: '0 0 0.1rem 0',  // margin 더 줄임 (0.25rem -> 0.1rem)
-                            color: '#ffffff',
-                            textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            margin: '0 0 0.5rem 0',
+                            color: '#1f2937',
+                            letterSpacing: '-0.025em'
                         }}>
                             Keyword Insight Pro
                         </h1>
-                        
+
                         <p style={{
                             fontSize: '0.875rem',
-                            color: 'rgba(255, 255, 255, 0.9)',
-                            margin: 0
+                            color: '#6b7280',
+                            margin: 0,
+                            fontWeight: '500'
                         }}>
                             Advanced SEO Research Platform
                         </p>
@@ -1349,6 +1337,36 @@ const App: React.FC = () => {
                                     로그인 / 회원가입
                                 </button>
                             )}
+
+                            <button
+                                onClick={() => setIsVideoTutorialsOpen(true)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    color: '#ffffff',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1.05)';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(124, 58, 237, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(124, 58, 237, 0.2)';
+                                }}
+                            >
+                                <span>🎬</span>
+                                <span>영상강의</span>
+                            </button>
 
                             <button
                                 onClick={() => setIsHelpModalOpen(true)}
@@ -1666,6 +1684,77 @@ const App: React.FC = () => {
                 }}
                 platform={pendingBlogWrite?.data?.platform || 'naver'}
             />
+
+            {/* 영상 강의 모달 */}
+            {isVideoTutorialsOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '1400px',
+                        maxHeight: '90vh',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: '1.5rem 2rem',
+                            borderBottom: '1px solid #e5e7eb',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)'
+                        }}>
+                            <h2 style={{
+                                fontSize: '1.5rem',
+                                fontWeight: 'bold',
+                                color: '#ffffff',
+                                margin: 0
+                            }}>
+                                사용법 및 강의 영상
+                            </h2>
+                            <button
+                                onClick={() => setIsVideoTutorialsOpen(false)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    color: '#ffffff',
+                                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                닫기
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{
+                            flex: 1,
+                            overflowY: 'auto',
+                            background: '#f9fafb'
+                        }}>
+                            <VideoTutorials />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

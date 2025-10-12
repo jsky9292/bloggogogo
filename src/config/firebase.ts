@@ -2,14 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
-// Firebase 설정 - 환경 변수에서 가져오기
+// Firebase 설정 - 환경 변수에서만 가져오기 (보안)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyB9OTHfn8ys8kC_9TWikwQegLfb3oJuKpE',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'keyword-insight-pro.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'keyword-insight-pro',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'keyword-insight-pro.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '814882225550',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:814882225550:web:275de97363373b3f3eb8df'
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Firebase 초기화
@@ -52,10 +52,10 @@ export const registerUser = async (email: string, password: string, name: string
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // 14일 무료 체험 기간 설정
+    // 7일 무료 체험 기간 설정
     const now = new Date();
     const freeEndDate = new Date();
-    freeEndDate.setDate(freeEndDate.getDate() + 14);
+    freeEndDate.setDate(freeEndDate.getDate() + 7);
 
     // Firestore에 사용자 프로필 생성
     const userProfile: UserProfile = {
@@ -67,7 +67,7 @@ export const registerUser = async (email: string, password: string, name: string
       createdAt: now,
       subscriptionStart: now,
       subscriptionEnd: freeEndDate,
-      subscriptionDays: 14,
+      subscriptionDays: 7,
       usage: {
         searches: 0,
         lastReset: now
@@ -168,10 +168,10 @@ export const loginWithGoogle = async (): Promise<UserProfile> => {
 
       return profile;
     } else {
-      // 신규 사용자 프로필 생성 (14일 무료 체험)
+      // 신규 사용자 프로필 생성 (7일 무료 체험)
       const now = new Date();
       const freeEndDate = new Date();
-      freeEndDate.setDate(freeEndDate.getDate() + 14);
+      freeEndDate.setDate(freeEndDate.getDate() + 7);
 
       const userProfile: UserProfile = {
         uid: user.uid,
@@ -182,7 +182,7 @@ export const loginWithGoogle = async (): Promise<UserProfile> => {
         createdAt: now,
         subscriptionStart: now,
         subscriptionEnd: freeEndDate,
-        subscriptionDays: 14,
+        subscriptionDays: 7,
         usage: {
           searches: 0,
           lastReset: now
@@ -243,12 +243,12 @@ export const checkUsageLimit = async (uid: string): Promise<boolean> => {
     const userData = userDoc.data() as UserProfile;
     const plan = userData.plan;
 
-    // Free 플랜이면서 14일 무료 체험 기간 중인지 체크
+    // Free 플랜이면서 7일 무료 체험 기간 중인지 체크
     if (plan === 'free' && userData.subscriptionEnd) {
       const now = new Date();
       const endDate = new Date(userData.subscriptionEnd);
 
-      // 14일 무료 체험 기간 중이면 무제한 사용
+      // 7일 무료 체험 기간 중이면 무제한 사용
       if (now <= endDate) {
         return true;
       }

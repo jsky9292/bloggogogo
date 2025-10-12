@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 계정 생성</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 관리자 계정 생성</h1>
+        <p class="subtitle">새로운 관리자 계정을 만들고 Firebase에 자동으로 등록합니다</p>
+
+        <div class="info">
+            <strong>📝 안내:</strong><br>
+            - 실제로 접근 가능한 이메일 주소를 사용하세요<br>
+            - 비밀번호는 6자 이상이어야 합니다<br>
+            - 생성 후 바로 로그인 가능합니다
+        </div>
+
+        <form id="createAdminForm">
+            <div class="form-group">
+                <label for="email">이메일 주소</label>
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="admin@gmail.com"
+                    value="admin@gmail.com"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="최소 6자 이상"
+                    value="Admin2025!"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="name">관리자 이름</label>
+                <input
+                    type="text"
+                    id="name"
+                    placeholder="관리자"
+                    value="관리자"
+                    required
+                >
+            </div>
+
+            <button type="submit" id="submitBtn">관리자 계정 생성</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyB9OTHfn8ys8kC_9TWikwQegLfb3oJuKpE',
+            authDomain: 'keyword-insight-pro.firebaseapp.com',
+            projectId: 'keyword-insight-pro',
+            storageBucket: 'keyword-insight-pro.appspot.com',
+            messagingSenderId: '814882225550',
+            appId: '1:814882225550:web:275de97363373b3f3eb8df'
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const form = document.getElementById('createAdminForm');
+        const resultDiv = document.getElementById('result');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const name = document.getElementById('name').value;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '생성 중...';
+            resultDiv.innerHTML = '';
+
+            try {
+                // 1. Firebase Authentication에 사용자 생성
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                console.log('✅ Authentication 사용자 생성:', user.uid);
+
+                // 2. Firestore에 관리자 프로필 생성
+                const now = new Date();
+                const userProfile = {
+                    uid: user.uid,
+                    email: email,
+                    name: name,
+                    plan: 'enterprise',
+                    role: 'admin',
+                    createdAt: now,
+                    usage: {
+                        searches: 0,
+                        lastReset: now
+                    }
+                };
+
+                await setDoc(doc(db, 'users', user.uid), userProfile);
+
+                console.log('✅ Firestore 프로필 생성 완료');
+
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>✅ 관리자 계정이 성공적으로 생성되었습니다!</strong><br><br>
+                        <strong>📧 이메일:</strong> ${email}<br>
+                        <strong>🔑 비밀번호:</strong> ${password}<br>
+                        <strong>👤 이름:</strong> ${name}<br>
+                        <strong>🎯 권한:</strong> Enterprise (관리자)<br><br>
+                        <strong>🚀 이제 이 계정으로 로그인하실 수 있습니다!</strong>
+                    </div>
+                `;
+
+                submitBtn.textContent = '생성 완료!';
+
+            } catch (error) {
+                console.error('❌ 오류 발생:', error);
+
+                let errorMessage = error.message;
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = '이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = '비밀번호가 너무 약합니다. 6자 이상 입력해주세요.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = '유효하지 않은 이메일 형식입니다.';
+                }
+
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ 오류 발생:</strong><br>
+                        ${errorMessage}
+                    </div>
+                `;
+
+                submitBtn.disabled = false;
+                submitBtn.textContent = '관리자 계정 생성';
+            }
+        });
+    </script>
+</body>
+</html>

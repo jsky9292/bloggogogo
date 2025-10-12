@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { db } from '../src/config/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+
+interface Video {
+    id: string;
+    title: string;
+    url: string;
+    description: string;
+    category: 'tutorial' | 'feature' | 'tip' | 'promotion';
+    order: number;
+    createdAt: Date;
+}
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -7,123 +19,227 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
   const [scrolled, setScrolled] = useState(false);
+  const [promotionVideos, setPromotionVideos] = useState<Video[]>([]);
+  const [videosLoading, setVideosLoading] = useState(true);
+  const [naverKeywords, setNaverKeywords] = useState<{ keyword: string; rank: number }[]>([]);
+  const [googleKeywords, setGoogleKeywords] = useState<{ keyword: string; rank: number }[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      setScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  return (
-    <>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-        }
-      `}</style>
-      <div style={{
-        minHeight: '100vh',
-        background: '#0a0a0a',
-        color: '#ffffff',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-      }}>
-      {/* Animated Background */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'radial-gradient(circle at 20% 50%, rgba(120, 40, 200, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(40, 120, 250, 0.2) 0%, transparent 50%), radial-gradient(circle at 40% 20%, rgba(200, 40, 120, 0.2) 0%, transparent 50%)',
-        animation: 'float 20s ease-in-out infinite',
-        pointerEvents: 'none'
-      }} />
+  useEffect(() => {
+    fetchPromotionVideos();
+    fetchTrendingKeywords();
+  }, []);
 
+  const fetchPromotionVideos = async () => {
+    try {
+      const videosCollection = collection(db, 'videos');
+      const snapshot = await getDocs(videosCollection);
+      const videoList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      })) as Video[];
+
+      const promoVideos = videoList
+        .filter(v => v.category === 'promotion')
+        .sort((a, b) => a.order - b.order);
+
+      setPromotionVideos(promoVideos);
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+    } finally {
+      setVideosLoading(false);
+    }
+  };
+
+  const fetchTrendingKeywords = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/trending_keywords');
+      const result = await response.json();
+
+      if (result.success) {
+        // 네이버 검색어 설정
+        if (result.naver && result.naver.length > 0) {
+          setNaverKeywords(result.naver);
+        } else {
+          setNaverKeywords([
+            { keyword: '블로그 수익화', rank: 1 },
+            { keyword: 'SEO 최적화', rank: 2 },
+            { keyword: '키워드 분석', rank: 3 },
+            { keyword: '구글 애드센스', rank: 4 },
+            { keyword: '콘텐츠 마케팅', rank: 5 }
+          ]);
+        }
+
+        // 구글 트렌드 설정
+        if (result.google && result.google.length > 0) {
+          setGoogleKeywords(result.google);
+        } else {
+          setGoogleKeywords([
+            { keyword: 'AI 글쓰기', rank: 1 },
+            { keyword: '블로그 상위노출', rank: 2 },
+            { keyword: '검색엔진 최적화', rank: 3 },
+            { keyword: '네이버 블로그', rank: 4 },
+            { keyword: '티스토리 수익', rank: 5 }
+          ]);
+        }
+      } else {
+        console.warn('실시간 검색어 API 호출 실패, 데모 데이터 사용');
+        setNaverKeywords([
+          { keyword: '블로그 수익화', rank: 1 },
+          { keyword: 'SEO 최적화', rank: 2 },
+          { keyword: '키워드 분석', rank: 3 },
+          { keyword: '구글 애드센스', rank: 4 },
+          { keyword: '콘텐츠 마케팅', rank: 5 }
+        ]);
+        setGoogleKeywords([
+          { keyword: 'AI 글쓰기', rank: 1 },
+          { keyword: '블로그 상위노출', rank: 2 },
+          { keyword: '검색엔진 최적화', rank: 3 },
+          { keyword: '네이버 블로그', rank: 4 },
+          { keyword: '티스토리 수익', rank: 5 }
+        ]);
+      }
+    } catch (error) {
+      console.error('실시간 검색어 조회 오류:', error);
+      setNaverKeywords([
+        { keyword: '블로그 수익화', rank: 1 },
+        { keyword: 'SEO 최적화', rank: 2 },
+        { keyword: '키워드 분석', rank: 3 },
+        { keyword: '구글 애드센스', rank: 4 },
+        { keyword: '콘텐츠 마케팅', rank: 5 }
+      ]);
+      setGoogleKeywords([
+        { keyword: 'AI 글쓰기', rank: 1 },
+        { keyword: '블로그 상위노출', rank: 2 },
+        { keyword: '검색엔진 최적화', rank: 3 },
+        { keyword: '네이버 블로그', rank: 4 },
+        { keyword: '티스토리 수익', rank: 5 }
+      ]);
+    }
+  };
+
+  const extractVideoId = (url: string): string | null => {
+    const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/);
+    if (youtubeMatch) return youtubeMatch[1];
+
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return vimeoMatch[1];
+
+    return null;
+  };
+
+  const getEmbedUrl = (url: string): string => {
+    const videoId = extractVideoId(url);
+
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    if (url.includes('vimeo.com')) {
+      return `https://player.vimeo.com/video/${videoId}`;
+    }
+
+    return url;
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#ffffff',
+      color: '#191f28',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    }}>
       {/* Navigation */}
       <header style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
-        padding: '1.5rem 5%',
-        background: scrolled ? 'rgba(10, 10, 10, 0.95)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px)' : 'none',
+        padding: '1rem 5%',
+        background: scrolled ? 'rgba(255, 255, 255, 0.95)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(10px)' : 'none',
         transition: 'all 0.3s ease',
         zIndex: 1000,
-        borderBottom: scrolled ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
+        borderBottom: scrolled ? '1px solid #e5e7eb' : 'none'
       }}>
         <div style={{
-          maxWidth: '1400px',
+          maxWidth: '1200px',
           margin: '0 auto',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '12px',
+              width: '36px',
+              height: '36px',
+              background: '#6891f8',
+              borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.5rem',
-              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)'
+              fontSize: '1.25rem'
             }}>
               🔍
             </div>
             <span style={{
-              fontSize: '1.25rem',
+              fontSize: '1.125rem',
               fontWeight: '700',
-              letterSpacing: '-0.02em'
+              color: '#191f28',
+              letterSpacing: '-0.01em'
             }}>
               Keyword Insight Pro
             </span>
           </div>
 
-          <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+          <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <button
               onClick={onLogin}
               style={{
-                padding: '0.625rem 1.5rem',
+                padding: '0.5rem 1.25rem',
                 background: 'transparent',
-                color: '#ffffff',
+                color: '#6b7280',
                 border: 'none',
-                fontSize: '0.95rem',
+                fontSize: '0.875rem',
                 fontWeight: '500',
                 cursor: 'pointer',
-                transition: 'opacity 0.2s'
+                transition: 'color 0.2s',
+                borderRadius: '6px'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#191f28'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
             >
               로그인
             </button>
             <button
               onClick={onRegister}
               style={{
-                padding: '0.625rem 1.75rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '0.5rem 1.5rem',
+                background: '#6891f8',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: '100px',
-                fontSize: '0.95rem',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.3s',
-                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
+                transition: 'all 0.2s',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 30px rgba(102, 126, 234, 0.5)';
+                e.currentTarget.style.background = '#5578e8';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(104, 145, 248, 0.25)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(102, 126, 234, 0.3)';
+                e.currentTarget.style.background = '#6891f8';
+                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
               }}
             >
               무료 시작하기
@@ -134,264 +250,458 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
       {/* Hero Section */}
       <section style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '0 5%',
-        position: 'relative',
-        marginTop: '80px'
+        padding: '8rem 5% 5rem',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        textAlign: 'center'
       }}>
         <div style={{
-          maxWidth: '1200px',
-          width: '100%',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.375rem 0.875rem',
+          background: '#eff6ff',
+          border: '1px solid #dbeafe',
+          borderRadius: '100px',
+          marginBottom: '1.5rem',
+          fontSize: '0.875rem',
+          color: '#1e40af',
+          fontWeight: '500'
         }}>
-          {/* Badge */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            background: 'rgba(102, 126, 234, 0.1)',
-            border: '1px solid rgba(102, 126, 234, 0.3)',
-            borderRadius: '100px',
-            marginBottom: '2rem'
-          }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              background: '#10b981',
-              borderRadius: '50%',
-              animation: 'pulse 2s infinite'
-            }} />
-            <span style={{
-              fontSize: '0.875rem',
-              color: '#a5b4fc'
-            }}>
-              AI 기반 키워드 분석 플랫폼
-            </span>
-          </div>
-
-          {/* Hook Badge */}
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 20px',
-            background: 'rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: '100px',
-            marginBottom: '2rem',
-            animation: 'pulse 2s infinite'
-          }}>
-            <span style={{ fontSize: '1.2rem' }}>🤫</span>
-            <span style={{
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              color: 'rgba(255, 255, 255, 0.9)'
-            }}>
-              쉿! 당신만 아는 키워드 전략
-            </span>
-          </div>
-
-          {/* Main Heading */}
-          <h1 style={{
-            fontSize: 'clamp(2.5rem, 8vw, 5rem)',
-            fontWeight: '800',
-            lineHeight: '1.1',
-            letterSpacing: '-0.03em',
-            marginBottom: '1.5rem'
-          }}>
-            <span style={{
-              background: 'linear-gradient(to right, #ffffff 20%, rgba(255, 255, 255, 0.7) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              검색 상위노출의
-            </span>
-            <br />
-            <span style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              비밀을 찾아드립니다
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p style={{
-            fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
-            color: 'rgba(255, 255, 255, 0.6)',
-            lineHeight: '1.6',
-            maxWidth: '700px',
-            margin: '0 auto 3rem'
-          }}>
-            AI가 분석한 경쟁력 지표로 최적의 키워드를 발견하고,
-            SEO 최적화된 콘텐츠를 자동으로 생성하세요
-          </p>
-
-          {/* CTA Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginBottom: '2rem'
-          }}>
-            <button
-              onClick={onRegister}
-              style={{
-                padding: '1rem 2.5rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '100px',
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 25px 50px rgba(102, 126, 234, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.3)';
-              }}
-            >
-              무료로 시작하기 →
-            </button>
-            <button
-              onClick={() => {
-                // 데모 계정으로 자동 로그인
-                onLogin();
-                setTimeout(() => {
-                  const demoEmail = document.querySelector('input[type="email"]') as HTMLInputElement;
-                  const demoPassword = document.querySelector('input[type="password"]') as HTMLInputElement;
-                  if (demoEmail && demoPassword) {
-                    demoEmail.value = 'demo@example.com';
-                    demoPassword.value = 'Demo123!';
-                  }
-                }, 100);
-              }}
-              style={{
-                padding: '1rem 2.5rem',
-                background: 'transparent',
-                color: '#ffffff',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '100px',
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              데모 보기
-            </button>
-          </div>
-
-          {/* Trust Indicators */}
-          <div style={{
-            display: 'flex',
-            gap: '3rem',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#10b981' }}>✓</span>
-              <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.95rem' }}>
-                신용카드 불필요
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#10b981' }}>✓</span>
-              <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.95rem' }}>
-                14일 무료 체험
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: '#10b981' }}>✓</span>
-              <span style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.95rem' }}>
-                5분 안에 시작
-              </span>
-            </div>
-          </div>
+          <span style={{
+            width: '6px',
+            height: '6px',
+            background: '#3b82f6',
+            borderRadius: '50%'
+          }} />
+          AI 기반 블로그 자동 수익화 플랫폼
         </div>
 
-        {/* Scroll Indicator */}
-        <div style={{
-          position: 'absolute',
-          bottom: '2rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          animation: 'bounce 2s infinite'
+        <h1 style={{
+          fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+          fontWeight: '800',
+          lineHeight: '1.2',
+          letterSpacing: '-0.02em',
+          marginBottom: '1.5rem',
+          color: '#191f28'
         }}>
-          <div style={{
-            width: '30px',
-            height: '50px',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '25px',
-            position: 'relative'
-          }}>
-            <div style={{
-              width: '4px',
-              height: '10px',
-              background: 'rgba(255, 255, 255, 0.5)',
-              borderRadius: '2px',
-              position: 'absolute',
-              top: '8px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              animation: 'scroll 2s infinite'
-            }} />
+          AI가 찾아주는<br />
+          <span style={{ color: '#6891f8' }}>최적의 키워드 전략</span>
+        </h1>
+
+        <p style={{
+          fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+          color: '#6b7280',
+          lineHeight: '1.7',
+          maxWidth: '700px',
+          margin: '0 auto 2.5rem',
+          fontWeight: '400'
+        }}>
+          경쟁도가 낮고 검색량이 높은 키워드를 찾아<br />
+          SEO 최적화된 콘텐츠를 자동으로 생성하세요
+        </p>
+
+        <div style={{
+          display: 'flex',
+          gap: '0.75rem',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          marginBottom: '2.5rem'
+        }}>
+          <button
+            onClick={onRegister}
+            style={{
+              padding: '0.875rem 2rem',
+              background: '#6891f8',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(104, 145, 248, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#5578e8';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(104, 145, 248, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#6891f8';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(104, 145, 248, 0.2)';
+            }}
+          >
+            7일 무료 체험 시작 →
+          </button>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          gap: '2rem',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          fontSize: '0.875rem',
+          color: '#9ca3af'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <span style={{ color: '#10b981', fontSize: '1rem' }}>✓</span>
+            <span>신용카드 불필요</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <span style={{ color: '#10b981', fontSize: '1rem' }}>✓</span>
+            <span>7일 무료 체험</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <span style={{ color: '#10b981', fontSize: '1rem' }}>✓</span>
+            <span>5분 안에 시작</span>
           </div>
         </div>
       </section>
 
+      {/* Trending Keywords Section */}
+      <section style={{
+        padding: '3rem 5%',
+        background: '#f9fafb',
+        borderTop: '1px solid #e5e7eb',
+        borderBottom: '1px solid #e5e7eb'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '2rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#191f28',
+              margin: 0
+            }}>
+              🔥 실시간 인기 검색어
+            </h2>
+            <span style={{
+              fontSize: '0.75rem',
+              color: '#9ca3af',
+              background: '#ffffff',
+              padding: '0.25rem 0.625rem',
+              borderRadius: '4px',
+              border: '1px solid #e5e7eb'
+            }}>
+              {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준
+            </span>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+            gap: '1.5rem'
+          }}>
+            {/* 네이버 실시간 검색어 */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '2px solid #03c75a'
+              }}>
+                <span style={{
+                  fontSize: '1.5rem'
+                }}>
+                  N
+                </span>
+                <h3 style={{
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  color: '#191f28',
+                  margin: 0
+                }}>
+                  네이버 실시간 검색어
+                </h3>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                {naverKeywords.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      transition: 'all 0.2s',
+                      cursor: 'pointer',
+                      background: '#fafafa'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0f0f0';
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#fafafa';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '0.875rem',
+                      fontWeight: '700',
+                      color: index < 3 ? '#03c75a' : '#9ca3af',
+                      minWidth: '1.5rem',
+                      textAlign: 'center'
+                    }}>
+                      {item.rank}
+                    </span>
+                    <span style={{
+                      flex: 1,
+                      fontSize: '0.9375rem',
+                      fontWeight: '500',
+                      color: '#191f28'
+                    }}>
+                      {item.keyword}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      color: '#10b981'
+                    }}>
+                      🔥
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 구글 트렌드 */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '2px solid #4285f4'
+              }}>
+                <span style={{
+                  fontSize: '1.5rem'
+                }}>
+                  G
+                </span>
+                <h3 style={{
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  color: '#191f28',
+                  margin: 0
+                }}>
+                  구글 트렌드
+                </h3>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                {googleKeywords.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      transition: 'all 0.2s',
+                      cursor: 'pointer',
+                      background: '#fafafa'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0f0f0';
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#fafafa';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '0.875rem',
+                      fontWeight: '700',
+                      color: index < 3 ? '#4285f4' : '#9ca3af',
+                      minWidth: '1.5rem',
+                      textAlign: 'center'
+                    }}>
+                      {item.rank}
+                    </span>
+                    <span style={{
+                      flex: 1,
+                      fontSize: '0.9375rem',
+                      fontWeight: '500',
+                      color: '#191f28'
+                    }}>
+                      {item.keyword}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      color: '#ea4335'
+                    }}>
+                      📈
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Promotion Videos Section */}
+      {promotionVideos.length > 0 && (
+        <section style={{
+          padding: '4rem 5%',
+          background: '#f9fafb'
+        }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '3rem'
+            }}>
+              <h2 style={{
+                fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
+                fontWeight: '700',
+                marginBottom: '0.75rem',
+                color: '#191f28'
+              }}>
+                서비스 소개
+              </h2>
+              <p style={{
+                fontSize: '1rem',
+                color: '#6b7280',
+                maxWidth: '600px',
+                margin: '0 auto'
+              }}>
+                Keyword Insight Pro가 어떻게 당신의 블로그를 성장시키는지 확인하세요
+              </p>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: promotionVideos.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(450px, 1fr))',
+              gap: '1.5rem',
+              maxWidth: promotionVideos.length === 1 ? '900px' : '100%',
+              margin: '0 auto'
+            }}>
+              {promotionVideos.map((video) => (
+                <div key={video.id} style={{
+                  background: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                >
+                  <div style={{
+                    position: 'relative',
+                    paddingBottom: '56.25%',
+                    height: 0,
+                    overflow: 'hidden',
+                    background: '#000'
+                  }}>
+                    <iframe
+                      src={getEmbedUrl(video.url)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none'
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+
+                  <div style={{ padding: '1.5rem' }}>
+                    <h3 style={{
+                      fontSize: '1.125rem',
+                      fontWeight: '600',
+                      marginBottom: '0.5rem',
+                      color: '#191f28'
+                    }}>
+                      {video.title}
+                    </h3>
+                    {video.description && (
+                      <p style={{
+                        fontSize: '0.875rem',
+                        color: '#6b7280',
+                        lineHeight: '1.6'
+                      }}>
+                        {video.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features Grid */}
       <section style={{
         padding: '5rem 5%',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(102, 126, 234, 0.05) 100%)'
+        background: '#ffffff'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{
             textAlign: 'center',
-            marginBottom: '4rem'
+            marginBottom: '3.5rem'
           }}>
             <h2 style={{
-              fontSize: 'clamp(2rem, 4vw, 3rem)',
+              fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
               fontWeight: '700',
-              marginBottom: '1rem',
-              background: 'linear-gradient(to right, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+              marginBottom: '0.75rem',
+              color: '#191f28'
             }}>
               강력한 기능들
             </h2>
             <p style={{
-              fontSize: '1.1rem',
-              color: 'rgba(255, 255, 255, 0.6)',
+              fontSize: '1rem',
+              color: '#6b7280',
               maxWidth: '600px',
               margin: '0 auto'
             }}>
@@ -401,95 +711,93 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-            gap: '2rem'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '1.5rem'
           }}>
             {[
               {
-                icon: '⚡',
+                icon: '🎯',
                 title: 'AI 경쟁력 분석',
-                description: '머신러닝 기반 실시간 경쟁도 측정',
-                gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                description: '경쟁도가 낮고 검색량이 높은 최적의 키워드를 AI가 자동으로 찾아드립니다',
+                color: '#6891f8'
               },
               {
-                icon: '🎯',
+                icon: '📈',
                 title: 'SERP 완벽 분석',
-                description: '구글/네이버 검색 결과 심층 분석',
-                gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+                description: '구글과 네이버 검색 결과를 심층 분석하여 상위노출 전략을 제시합니다',
+                color: '#ec4899'
               },
               {
                 icon: '✨',
                 title: 'AI 콘텐츠 생성',
-                description: 'SEO 최적화된 고품질 콘텐츠 자동 생성',
-                gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+                description: 'SEO 최적화된 고품질 블로그 콘텐츠를 자동으로 생성해드립니다',
+                color: '#06b6d4'
               },
               {
                 icon: '📊',
-                title: '데이터 시각화',
-                description: '직관적인 대시보드와 리포트',
-                gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+                title: '실시간 트렌드',
+                description: '빠르게 변하는 검색 트렌드를 실시간으로 포착하고 분석합니다',
+                color: '#10b981'
+              },
+              {
+                icon: '💎',
+                title: '키워드 저장소',
+                description: '발견한 키워드를 체계적으로 관리하고 추적할 수 있습니다',
+                color: '#f59e0b'
               },
               {
                 icon: '🚀',
-                title: '실시간 트렌드',
-                description: '빠르게 변하는 검색 트렌드 포착',
-                gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-              },
-              {
-                icon: '🔒',
-                title: '엔터프라이즈 보안',
-                description: 'SSL 암호화 및 데이터 보호',
-                gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+                title: '빠른 분석 속도',
+                description: '강력한 AI 엔진으로 수천 개의 키워드를 빠르게 분석합니다',
+                color: '#8b5cf6'
               }
             ].map((feature, index) => (
               <div
                 key={index}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '20px',
+                  background: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
                   padding: '2rem',
-                  transition: 'all 0.3s',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden'
+                  transition: 'all 0.2s',
+                  cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-5px)';
-                  e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.5)';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.borderColor = '#d1d5db';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.06)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = 'none';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
                 }}
               >
                 <div style={{
-                  width: '60px',
-                  height: '60px',
-                  background: feature.gradient,
-                  borderRadius: '16px',
+                  width: '48px',
+                  height: '48px',
+                  background: `${feature.color}15`,
+                  borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '2rem',
-                  marginBottom: '1.5rem',
-                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
+                  fontSize: '1.5rem',
+                  marginBottom: '1.25rem'
                 }}>
                   {feature.icon}
                 </div>
                 <h3 style={{
-                  fontSize: '1.25rem',
+                  fontSize: '1.125rem',
                   fontWeight: '600',
-                  marginBottom: '0.75rem'
+                  marginBottom: '0.5rem',
+                  color: '#191f28'
                 }}>
                   {feature.title}
                 </h3>
                 <p style={{
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  lineHeight: '1.6'
+                  color: '#6b7280',
+                  lineHeight: '1.6',
+                  fontSize: '0.9375rem'
                 }}>
                   {feature.description}
                 </p>
@@ -502,23 +810,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
       {/* Pricing */}
       <section style={{
         padding: '5rem 5%',
-        position: 'relative'
+        background: '#f9fafb'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{
             textAlign: 'center',
-            marginBottom: '4rem'
+            marginBottom: '3.5rem'
           }}>
             <h2 style={{
-              fontSize: 'clamp(2rem, 4vw, 3rem)',
+              fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
               fontWeight: '700',
-              marginBottom: '1rem'
+              marginBottom: '0.75rem',
+              color: '#191f28'
             }}>
               투명한 가격 정책
             </h2>
             <p style={{
-              fontSize: '1.1rem',
-              color: 'rgba(255, 255, 255, 0.6)'
+              fontSize: '1rem',
+              color: '#6b7280'
             }}>
               필요에 맞는 플랜을 선택하세요
             </p>
@@ -526,18 +835,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '2rem'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '1.5rem'
           }}>
             {[
               {
                 name: 'Free Trial',
                 price: '₩0',
-                period: '/14일',
-                features: ['하루 10개 키워드 분석', 'AI 블로그 1개 생성', '경쟁 난이도 분석', '검색량 트렌드 확인', '14일 무료 체험'],
+                period: '/7일',
+                features: ['하루 10개 키워드 분석', 'AI 블로그 1개 생성', '경쟁 난이도 분석', '검색량 트렌드 확인', '7일 무료 체험'],
                 cta: '지금 무료로 시작',
                 popular: false,
-                badge: '🎁 14일 체험'
+                badge: '7일 체험'
               },
               {
                 name: 'Basic',
@@ -553,8 +862,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                 period: '/월',
                 features: ['하루 100개 키워드 분석', 'AI 블로그 무제한', '실시간 순위 모니터링', '무제한 키워드 저장', '카카오톡 알림'],
                 cta: 'Pro 시작하기',
-                popular: true,
-                badge: '🔥 가장 인기'
+                popular: true
               },
               {
                 name: 'Enterprise',
@@ -568,62 +876,63 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
               <div
                 key={index}
                 style={{
-                  background: plan.popular
-                    ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'
-                    : 'rgba(255, 255, 255, 0.03)',
-                  border: plan.popular
-                    ? '2px solid rgba(102, 126, 234, 0.5)'
-                    : '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '24px',
-                  padding: '2.5rem',
+                  background: '#ffffff',
+                  border: plan.popular ? '2px solid #6891f8' : '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  padding: '2rem',
                   position: 'relative',
-                  transition: 'all 0.3s',
+                  transition: 'all 0.2s',
                   display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: '500px'
+                  flexDirection: 'column'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-10px)';
+                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 {plan.badge && (
                   <div style={{
                     position: 'absolute',
-                    top: '-12px',
+                    top: '-10px',
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    background: plan.popular ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    padding: '0.375rem 1.25rem',
+                    background: plan.popular ? '#6891f8' : '#10b981',
+                    color: '#ffffff',
+                    padding: '0.25rem 0.875rem',
                     borderRadius: '100px',
-                    fontSize: '0.875rem',
+                    fontSize: '0.75rem',
                     fontWeight: '600'
                   }}>
-                    {plan.badge}
+                    {plan.popular ? '가장 인기' : plan.badge}
                   </div>
                 )}
 
-                <div style={{ marginBottom: '2rem' }}>
+                <div style={{ marginBottom: '1.5rem' }}>
                   <h3 style={{
-                    fontSize: '1.5rem',
+                    fontSize: '1.25rem',
                     fontWeight: '600',
-                    marginBottom: '1rem'
+                    marginBottom: '0.75rem',
+                    color: '#191f28'
                   }}>
                     {plan.name}
                   </h3>
-                  <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ marginBottom: '0.75rem' }}>
                     <span style={{
-                      fontSize: '2.5rem',
-                      fontWeight: '700'
+                      fontSize: '2rem',
+                      fontWeight: '700',
+                      color: '#191f28'
                     }}>
                       {plan.price}
                     </span>
                     {plan.period && (
                       <span style={{
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        marginLeft: '0.5rem'
+                        color: '#9ca3af',
+                        marginLeft: '0.375rem',
+                        fontSize: '0.875rem'
                       }}>
                         {plan.period}
                       </span>
@@ -634,22 +943,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                 <ul style={{
                   listStyle: 'none',
                   padding: 0,
-                  marginBottom: '2rem',
+                  marginBottom: '1.5rem',
                   flex: 1
                 }}>
                   {plan.features.map((feature, idx) => (
                     <li
                       key={idx}
                       style={{
-                        padding: '0.75rem 0',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                        padding: '0.625rem 0',
+                        borderBottom: idx < plan.features.length - 1 ? '1px solid #f3f4f6' : 'none',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem'
+                        alignItems: 'flex-start',
+                        gap: '0.625rem',
+                        fontSize: '0.875rem'
                       }}
                     >
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      <span style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                      <span style={{ color: '#10b981', fontSize: '1rem', flexShrink: 0 }}>✓</span>
+                      <span style={{ color: '#4b5563' }}>
                         {feature}
                       </span>
                     </li>
@@ -660,32 +970,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   onClick={onRegister}
                   style={{
                     width: '100%',
-                    padding: '0.875rem',
-                    background: plan.popular
-                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : 'transparent',
-                    color: '#ffffff',
-                    border: plan.popular
-                      ? 'none'
-                      : '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '12px',
-                    fontSize: '1rem',
+                    padding: '0.75rem',
+                    background: plan.popular ? '#6891f8' : '#ffffff',
+                    color: plan.popular ? '#ffffff' : '#191f28',
+                    border: plan.popular ? 'none' : '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '0.9375rem',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    transition: 'all 0.3s'
+                    transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    if (!plan.popular) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    if (plan.popular) {
+                      e.currentTarget.style.background = '#5578e8';
                     } else {
-                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.background = '#f9fafb';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!plan.popular) {
-                      e.currentTarget.style.background = 'transparent';
+                    if (plan.popular) {
+                      e.currentTarget.style.background = '#6891f8';
                     } else {
-                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.background = '#ffffff';
                     }
                   }}
                 >
@@ -699,9 +1005,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
       {/* Footer */}
       <footer style={{
-        padding: '3rem 5%',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        marginTop: '5rem'
+        padding: '2.5rem 5%',
+        borderTop: '1px solid #e5e7eb',
+        background: '#ffffff'
       }}>
         <div style={{
           maxWidth: '1200px',
@@ -710,18 +1016,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '2rem'
+          gap: '1.5rem'
         }}>
           <div>
             <div style={{
-              fontSize: '1.125rem',
+              fontSize: '1rem',
               fontWeight: '600',
-              marginBottom: '0.5rem'
+              marginBottom: '0.375rem',
+              color: '#191f28'
             }}>
               Keyword Insight Pro
             </div>
             <p style={{
-              color: 'rgba(255, 255, 255, 0.5)',
+              color: '#9ca3af',
               fontSize: '0.875rem'
             }}>
               © 2025 All rights reserved.
@@ -730,73 +1037,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
           <div style={{
             display: 'flex',
-            gap: '2rem'
+            gap: '1.5rem'
           }}>
             <a href="#" style={{
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: '#6b7280',
               textDecoration: 'none',
-              fontSize: '0.95rem',
+              fontSize: '0.875rem',
               transition: 'color 0.2s'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#191f28'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
             >
               이용약관
             </a>
             <a href="#" style={{
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: '#6b7280',
               textDecoration: 'none',
-              fontSize: '0.95rem',
+              fontSize: '0.875rem',
               transition: 'color 0.2s'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#191f28'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
             >
               개인정보처리방침
             </a>
             <a href="#" style={{
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: '#6b7280',
               textDecoration: 'none',
-              fontSize: '0.95rem',
+              fontSize: '0.875rem',
               transition: 'color 0.2s'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#191f28'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
             >
               문의하기
             </a>
           </div>
         </div>
       </footer>
-
-      {/* CSS Animations */}
-      <style>
-        {`
-          @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-          }
-
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-
-          @keyframes bounce {
-            0%, 100% { transform: translateY(0) translateX(-50%); }
-            50% { transform: translateY(-10px) translateX(-50%); }
-          }
-
-          @keyframes scroll {
-            0% { transform: translateY(0) translateX(-50%); opacity: 0; }
-            40% { opacity: 1; }
-            80% { transform: translateY(15px) translateX(-50%); opacity: 0; }
-            100% { transform: translateY(15px) translateX(-50%); opacity: 0; }
-          }
-        `}
-      </style>
     </div>
-    </>
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, updateUserSubscription } from '../src/config/firebase';
 import EmailComposer from './EmailComposer';
+import AdminVideoManagement from './AdminVideoManagement';
 
 interface User {
     uid: string;
@@ -38,6 +39,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [showEmailModal, setShowEmailModal] = useState(false);
+    const [activeTab, setActiveTab] = useState<'users' | 'videos'>('users');
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -286,13 +288,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                     alignItems: 'center',
                     background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)'
                 }}>
-                    <h2 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: '#ffffff'
-                    }}>
-                        관리자 대시보드
-                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                        <h2 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 'bold',
+                            color: '#ffffff'
+                        }}>
+                            관리자 대시보드
+                        </h2>
+
+                        {/* Tab Navigation */}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setActiveTab('users')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: activeTab === 'users' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                                    color: '#ffffff',
+                                    border: activeTab === 'users' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                사용자 관리
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('videos')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: activeTab === 'videos' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                                    color: '#ffffff',
+                                    border: activeTab === 'videos' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                영상 관리
+                            </button>
+                        </div>
+                    </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                             onClick={() => setShowEmailModal(true)}
@@ -373,8 +411,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                     </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div style={{
+                {/* Content Area */}
+                {activeTab === 'users' ? (
+                    <>
+                        {/* Stats Cards */}
+                        <div style={{
                     padding: '20px',
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -737,12 +778,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                     </div>
                 )}
 
-                {/* 이메일 발송 모달 */}
-                <EmailComposer
-                    isOpen={showEmailModal}
-                    onClose={() => setShowEmailModal(false)}
-                    users={users}
-                />
+                        {/* 이메일 발송 모달 */}
+                        <EmailComposer
+                            isOpen={showEmailModal}
+                            onClose={() => setShowEmailModal(false)}
+                            users={users}
+                        />
+                    </>
+                ) : (
+                    /* Video Management Tab */
+                    <AdminVideoManagement />
+                )}
             </div>
         </div>
     );

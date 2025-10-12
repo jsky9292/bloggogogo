@@ -204,6 +204,127 @@ def get_progress():
 def download_file(filename):
     return send_file(filename, as_attachment=True)
 
+def get_naver_realtime_keywords():
+    """네이버 뉴스 인기 검색어 크롤링"""
+    try:
+        keywords = []
+
+        # 네이버 뉴스 랭킹 페이지에서 인기 검색어 가져오기
+        url = 'https://news.naver.com/main/ranking/popularDay.naver'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 랭킹 뉴스 제목에서 키워드 추출
+        ranking_news = soup.select('.ranking_headline a')
+
+        keyword_set = set()
+        for idx, news in enumerate(ranking_news[:20]):
+            title = news.get_text(strip=True)
+            # 제목에서 주요 키워드 추출 (띄어쓰기 기준)
+            words = title.split()
+            for word in words:
+                if len(word) >= 2 and word not in keyword_set:
+                    keyword_set.add(word)
+                    keywords.append({
+                        'keyword': word,
+                        'rank': len(keywords) + 1,
+                        'source': 'naver'
+                    })
+                    if len(keywords) >= 10:
+                        break
+            if len(keywords) >= 10:
+                break
+
+        print(f"[INFO] 네이버 뉴스 키워드 {len(keywords)}개 수집")
+        return keywords[:10]
+
+    except Exception as e:
+        print(f"[ERROR] 네이버 크롤링 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+def get_google_trends_keywords():
+    """구글 뉴스 트렌드 크롤링"""
+    try:
+        keywords = []
+
+        # 구글 뉴스 한국 페이지에서 헤드라인 가져오기
+        url = 'https://news.google.com/topstories?hl=ko&gl=KR&ceid=KR:ko'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 뉴스 제목에서 키워드 추출
+        news_titles = soup.select('article h3 a, article h4 a')
+
+        keyword_set = set()
+        for news in news_titles[:20]:
+            title = news.get_text(strip=True)
+            # 제목에서 주요 키워드 추출
+            words = title.split()
+            for word in words:
+                if len(word) >= 2 and word not in keyword_set:
+                    keyword_set.add(word)
+                    keywords.append({
+                        'keyword': word,
+                        'rank': len(keywords) + 1,
+                        'source': 'google'
+                    })
+                    if len(keywords) >= 10:
+                        break
+            if len(keywords) >= 10:
+                break
+
+        print(f"[INFO] 구글 뉴스 키워드 {len(keywords)}개 수집")
+        return keywords[:10]
+
+    except Exception as e:
+        print(f"[ERROR] 구글 뉴스 크롤링 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+@app.route('/trending_keywords', methods=['GET'])
+def get_trending_keywords():
+    """
+    실시간 인기 검색어 조회
+    네이버와 구글의 실시간 트렌드 검색어 가져오기
+    """
+    try:
+        # 네이버 실시간 검색어
+        naver_keywords = get_naver_realtime_keywords()
+
+        # 구글 트렌드 검색어
+        google_keywords = get_google_trends_keywords()
+
+        # 실시간 데이터만 표시 (fallback 없음)
+        print(f"[INFO] 네이버: {len(naver_keywords)}개, 구글: {len(google_keywords)}개")
+
+        return jsonify({
+            'success': True,
+            'naver': naver_keywords,
+            'google': google_keywords,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        print(f"[ERROR] 실시간 검색어 조회 실패: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'naver': [],
+            'google': []
+        })
+
 if __name__ == '__main__':
     load_api_keys()
     app.run(debug=True, port=8080)
