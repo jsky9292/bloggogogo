@@ -31,7 +31,8 @@ import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './s
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
 import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
 import { config } from './src/config/appConfig';
-import { updateAdminAccount } from './src/config/firebase';
+import { updateAdminAccount, saveNaverApiKeys, getNaverApiKeys } from './src/config/firebase';
+import type { NaverApiKeys as FirebaseNaverApiKeys } from './src/config/firebase';
 
 interface NaverApiKeys {
     adApiKey: string;
@@ -160,7 +161,20 @@ const App: React.FC = () => {
                 });
             });
         }
-    }, [currentUser?.email]);
+
+        // 사용자 로그인 시 Firebase에서 네이버 API 키 불러오기
+        if (currentUser && currentUser.uid) {
+            getNaverApiKeys(currentUser.uid).then((keys) => {
+                if (keys) {
+                    console.log('Loaded Naver API keys from Firebase');
+                    setNaverApiKeys(keys);
+                    localStorage.setItem('naverApiKeys', JSON.stringify(keys));
+                }
+            }).catch((error) => {
+                console.error('Error loading Naver API keys:', error);
+            });
+        }
+    }, [currentUser?.email, currentUser?.uid]);
 
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
@@ -796,10 +810,22 @@ const App: React.FC = () => {
         downloadExcel(filename);
     };
 
-    const handleSaveNaverApiKeys = (keys: NaverApiKeys) => {
+    const handleSaveNaverApiKeys = async (keys: NaverApiKeys) => {
         setNaverApiKeys(keys);
         localStorage.setItem('naverApiKeys', JSON.stringify(keys));
-        alert('✅ 네이버 API 키가 저장되었습니다!');
+
+        // 관리자 계정인 경우 Firebase에도 저장
+        if (currentUser && currentUser.uid) {
+            try {
+                await saveNaverApiKeys(currentUser.uid, keys);
+                alert('✅ 네이버 API 키가 저장되었습니다! (Firebase 동기화 완료)');
+            } catch (error) {
+                console.error('Error saving to Firebase:', error);
+                alert('✅ 네이버 API 키가 로컬에 저장되었습니다. (Firebase 동기화 실패)');
+            }
+        } else {
+            alert('✅ 네이버 API 키가 로컬에 저장되었습니다!');
+        }
     };
 
     const handleReset = () => {

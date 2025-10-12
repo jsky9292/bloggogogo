@@ -18,6 +18,15 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// 네이버 API 키 타입 정의
+export interface NaverApiKeys {
+  adApiKey: string;
+  adSecretKey: string;
+  adCustomerId: string;
+  searchClientId: string;
+  searchClientSecret: string;
+}
+
 // 사용자 타입 정의
 export interface UserProfile {
   uid: string;
@@ -30,6 +39,7 @@ export interface UserProfile {
   subscriptionEnd?: Date;
   subscriptionDays?: number; // 구독 일수 추가
   apiKey?: string;
+  naverApiKeys?: NaverApiKeys; // 네이버 API 키 추가
   usage?: {
     searches: number;
     lastReset: Date;
@@ -103,6 +113,11 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
         localStorage.setItem('gemini_api_key', profile.apiKey);
       }
 
+      // 네이버 API 키가 있으면 localStorage에 저장
+      if (profile.naverApiKeys) {
+        localStorage.setItem('naverApiKeys', JSON.stringify(profile.naverApiKeys));
+      }
+
       return profile;
     } else {
       // 프로필이 없으면 생성 (기존 사용자의 경우)
@@ -144,6 +159,11 @@ export const loginWithGoogle = async (): Promise<UserProfile> => {
       // API 키가 있으면 localStorage에 저장
       if (profile.apiKey) {
         localStorage.setItem('gemini_api_key', profile.apiKey);
+      }
+
+      // 네이버 API 키가 있으면 localStorage에 저장
+      if (profile.naverApiKeys) {
+        localStorage.setItem('naverApiKeys', JSON.stringify(profile.naverApiKeys));
       }
 
       return profile;
@@ -378,5 +398,36 @@ export const checkSubscriptionExpiry = async (uid: string): Promise<boolean> => 
   } catch (error) {
     console.error('Subscription check error:', error);
     return false;
+  }
+};
+
+// 네이버 API 키 저장 함수
+export const saveNaverApiKeys = async (uid: string, naverApiKeys: NaverApiKeys): Promise<void> => {
+  try {
+    await updateUserProfile(uid, {
+      naverApiKeys
+    });
+
+    // localStorage에도 저장
+    localStorage.setItem('naverApiKeys', JSON.stringify(naverApiKeys));
+
+    console.log('Naver API keys saved to Firebase and localStorage');
+  } catch (error) {
+    console.error('Error saving Naver API keys:', error);
+    throw error;
+  }
+};
+
+// 네이버 API 키 가져오기 함수
+export const getNaverApiKeys = async (uid: string): Promise<NaverApiKeys | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) return null;
+
+    const userData = userDoc.data() as UserProfile;
+    return userData.naverApiKeys || null;
+  } catch (error) {
+    console.error('Error getting Naver API keys:', error);
+    return null;
   }
 };
