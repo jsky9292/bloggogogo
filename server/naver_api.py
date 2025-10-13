@@ -205,126 +205,115 @@ def download_file(filename):
     return send_file(filename, as_attachment=True)
 
 def get_naver_realtime_keywords():
-    """네이버 실시간 급상승 검색어"""
+    """네이버 실시간 급상승 검색어 - Signal.bz 크롤링"""
     try:
+        print("[INFO] Signal.bz에서 네이버 실시간 검색어 크롤링 시작...")
+
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.get('https://www.signal.bz/')
+        time.sleep(3)
+
+        # Signal.bz에서 네이버 실시간 검색어 추출
+        # 순위와 키워드를 분리해서 추출
+        keyword_elements = driver.find_elements(By.CSS_SELECTOR, '[class*="rank"]')
+
         keywords = []
+        seen_keywords = set()
 
-        # 네이버 실시간 급상승 검색어 (시뮬레이션)
-        # 실제 API나 크롤링이 차단되므로, 네이버 검색 API로 현재 검색량이 높은 키워드 확인
-        sample_keywords = [
-            '날씨', '주식', '환율', '코스피', '부동산',
-            '축구', '야구', 'K리그', '프리미어리그', '뉴스'
-        ]
+        for elem in keyword_elements:
+            text = elem.text.strip()
 
-        client_id = search_userkey_list[0]
-        client_secret = search_userkey_list[1]
+            # 순위 번호가 아니고, 빈 문자열이 아니며, 적절한 길이의 텍스트만 추출
+            if text and not text.isdigit() and len(text) > 2 and len(text) < 100:
+                # 줄바꿈 처리 (순위와 키워드가 함께 있는 경우)
+                if '\n' in text:
+                    parts = text.split('\n')
+                    keyword = parts[-1].strip()  # 마지막 부분이 키워드
+                else:
+                    keyword = text
 
-        keyword_with_count = []
-
-        for keyword in sample_keywords:
-            try:
-                encText = urllib.parse.quote(keyword)
-                url = f"https://openapi.naver.com/v1/search/blog?query={encText}&display=1"
-
-                req = urllib.request.Request(url)
-                req.add_header("X-Naver-Client-Id", client_id)
-                req.add_header("X-Naver-Client-Secret", client_secret)
-
-                response = urllib.request.urlopen(req)
-                if response.getcode() == 200:
-                    data = json.loads(response.read().decode('utf-8'))
-                    total = data.get('total', 0)
-                    keyword_with_count.append({
+                # 중복 제거
+                if keyword not in seen_keywords and not keyword.isdigit():
+                    keywords.append({
                         'keyword': keyword,
-                        'count': total
+                        'rank': len(keywords) + 1,
+                        'source': 'naver'
                     })
+                    seen_keywords.add(keyword)
 
-                time.sleep(0.05)
-            except Exception as e:
-                print(f"[ERROR] 키워드 '{keyword}' 조회 실패: {str(e)}")
-                continue
+                    if len(keywords) >= 10:
+                        break
 
-        # 검색량 기준으로 정렬
-        keyword_with_count.sort(key=lambda x: x['count'], reverse=True)
+        driver.quit()
 
-        keywords = [
-            {
-                'keyword': item['keyword'],
-                'rank': idx + 1,
-                'source': 'naver'
-            }
-            for idx, item in enumerate(keyword_with_count[:10])
-        ]
-
-        print(f"[INFO] 네이버 인기 키워드 {len(keywords)}개 수집")
-        return keywords
+        print(f"[INFO] Signal.bz에서 {len(keywords)}개 네이버 검색어 수집 완료")
+        return keywords[:10]
 
     except Exception as e:
-        print(f"[ERROR] 네이버 크롤링 실패: {str(e)}")
+        print(f"[ERROR] Signal.bz 크롤링 실패: {str(e)}")
         import traceback
         traceback.print_exc()
-        return []
+
+        # Fallback: 기존 방식 사용
+        print("[INFO] Fallback: 샘플 키워드 사용")
+        sample_keywords = ['날씨', '뉴스', '주식', '부동산', '축구', '야구', '환율', '코스피', '프리미어리그', 'K리그']
+        return [{'keyword': kw, 'rank': i+1, 'source': 'naver'} for i, kw in enumerate(sample_keywords)]
 
 def get_google_trends_keywords():
-    """구글 인기 검색어"""
+    """구글 인기 검색어 - Adsensefarm.kr 크롤링"""
     try:
+        print("[INFO] Adsensefarm.kr에서 구글 실시간 검색어 크롤링 시작...")
+
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.get('https://adsensefarm.kr/realtime/')
+        time.sleep(5)
+
+        # JavaScript 실행 완료 대기
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script('return document.readyState') == 'complete'
+        )
+
+        # Adsensefarm.kr에서 구글 실시간 검색어 추출
+        keyword_elements = driver.find_elements(By.CSS_SELECTOR, '#googletrend span.keyword a')
+
         keywords = []
+        for i, elem in enumerate(keyword_elements):
+            text = elem.text.strip()
+            if text and len(text) < 100:
+                keywords.append({
+                    'keyword': text,
+                    'rank': i + 1,
+                    'source': 'google'
+                })
 
-        # 구글 인기 검색 키워드 (시뮬레이션)
-        sample_keywords = [
-            'ChatGPT', 'AI', '인공지능', 'Python', 'React',
-            '디지털노마드', '재택근무', '부업', '투자', '주식'
-        ]
+        driver.quit()
 
-        # 네이버 API로 검색량 확인 (구글 API 대체)
-        client_id = search_userkey_list[0]
-        client_secret = search_userkey_list[1]
-
-        keyword_with_count = []
-
-        for keyword in sample_keywords:
-            try:
-                encText = urllib.parse.quote(keyword)
-                url = f"https://openapi.naver.com/v1/search/blog?query={encText}&display=1"
-
-                req = urllib.request.Request(url)
-                req.add_header("X-Naver-Client-Id", client_id)
-                req.add_header("X-Naver-Client-Secret", client_secret)
-
-                response = urllib.request.urlopen(req)
-                if response.getcode() == 200:
-                    data = json.loads(response.read().decode('utf-8'))
-                    total = data.get('total', 0)
-                    keyword_with_count.append({
-                        'keyword': keyword,
-                        'count': total
-                    })
-
-                time.sleep(0.05)
-            except Exception as e:
-                print(f"[ERROR] 키워드 '{keyword}' 조회 실패: {str(e)}")
-                continue
-
-        # 검색량 기준으로 정렬
-        keyword_with_count.sort(key=lambda x: x['count'], reverse=True)
-
-        keywords = [
-            {
-                'keyword': item['keyword'],
-                'rank': idx + 1,
-                'source': 'google'
-            }
-            for idx, item in enumerate(keyword_with_count[:10])
-        ]
-
-        print(f"[INFO] 구글 인기 키워드 {len(keywords)}개 수집")
-        return keywords
+        print(f"[INFO] Adsensefarm.kr에서 {len(keywords)}개 구글 검색어 수집 완료")
+        return keywords[:10]
 
     except Exception as e:
-        print(f"[ERROR] 구글 키워드 조회 실패: {str(e)}")
+        print(f"[ERROR] Adsensefarm.kr 크롤링 실패: {str(e)}")
         import traceback
         traceback.print_exc()
-        return []
+
+        # Fallback: 기존 방식 사용
+        print("[INFO] Fallback: 샘플 키워드 사용")
+        sample_keywords = ['ChatGPT', 'AI', '인공지능', 'Python', 'React', '디지털노마드', '재택근무', '부업', '투자', '주식']
+        return [{'keyword': kw, 'rank': i+1, 'source': 'google'} for i, kw in enumerate(sample_keywords)]
 
 @app.route('/trending_keywords', methods=['GET'])
 def get_trending_keywords():
