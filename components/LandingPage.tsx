@@ -61,8 +61,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
   const fetchTrendingKeywords = async () => {
     try {
-      console.log('[DEBUG] 실시간 검색어 API 호출 시작...');
-      const response = await fetch('http://localhost:8080/trending_keywords');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      console.log('[DEBUG] 실시간 검색어 API 호출 시작...', apiUrl);
+      const response = await fetch(`${apiUrl}/trending_keywords`);
       const result = await response.json();
 
       console.log('[DEBUG] API 응답:', result);

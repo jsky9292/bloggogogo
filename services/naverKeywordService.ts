@@ -1,6 +1,6 @@
 import type { NaverKeywordData } from '../types';
 
-const FLASK_API_URL = 'http://localhost:8080';
+const FLASK_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export async function searchNaverKeywords(keyword: string): Promise<NaverKeywordData[]> {
   try {

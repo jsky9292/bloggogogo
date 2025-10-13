@@ -32,7 +32,14 @@ VITE_FIREBASE_PROJECT_ID=keyword-insight-pro
 VITE_FIREBASE_STORAGE_BUCKET=keyword-insight-pro.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=814882225550
 VITE_FIREBASE_APP_ID=1:814882225550:web:275de97363373b3f3eb8df
+
+# Flask API URL
+# 로컬 개발: http://localhost:8080
+# 프로덕션: https://your-api-domain.com 또는 https://keywinsight.com/api
+VITE_API_URL=http://localhost:8080
 ```
+
+> **중요**: 다른 PC나 도메인(keywinsight.com)에서 접속하는 경우, `VITE_API_URL`을 실제 API 서버 주소로 변경하세요.
 
 ### 2.2 네이버 API 키 설정 (Flask API 사용 시)
 
