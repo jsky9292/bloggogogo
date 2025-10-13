@@ -1007,14 +1007,19 @@ const App: React.FC = () => {
                     <div style={{
                         padding: '1.5rem',
                         borderBottom: '1px solid #e2e8f0',
-                        background: '#ffffff'
+                        background: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'column'
                     }}>
                         <h1 style={{
                             fontSize: '1.5rem',
                             fontWeight: '700',
                             margin: '0 0 0.5rem 0',
-                            color: '#1f2937',
-                            letterSpacing: '-0.025em'
+                            color: '#2563eb',
+                            letterSpacing: '-0.025em',
+                            textAlign: 'center'
                         }}>
                             Keyword Insight Pro
                         </h1>
