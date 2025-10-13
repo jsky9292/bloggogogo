@@ -61,14 +61,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
   const fetchTrendingKeywords = async () => {
     try {
+      console.log('[DEBUG] 실시간 검색어 API 호출 시작...');
       const response = await fetch('http://localhost:8080/trending_keywords');
       const result = await response.json();
+
+      console.log('[DEBUG] API 응답:', result);
+      console.log('[DEBUG] 네이버 키워드 수:', result.naver?.length);
+      console.log('[DEBUG] 구글 키워드 수:', result.google?.length);
 
       if (result.success) {
         // 네이버 검색어 설정
         if (result.naver && result.naver.length > 0) {
+          console.log('[DEBUG] 네이버 검색어 설정:', result.naver);
           setNaverKeywords(result.naver);
         } else {
+          console.warn('[WARN] 네이버 검색어가 비어있음, fallback 사용');
           setNaverKeywords([
             { keyword: '블로그 수익화', rank: 1 },
             { keyword: 'SEO 최적화', rank: 2 },
@@ -80,8 +87,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
 
         // 구글 트렌드 설정
         if (result.google && result.google.length > 0) {
+          console.log('[DEBUG] 구글 검색어 설정:', result.google);
           setGoogleKeywords(result.google);
         } else {
+          console.warn('[WARN] 구글 검색어가 비어있음, fallback 사용');
           setGoogleKeywords([
             { keyword: 'AI 글쓰기', rank: 1 },
             { keyword: '블로그 상위노출', rank: 2 },
