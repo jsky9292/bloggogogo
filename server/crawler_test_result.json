@@ -1,0 +1,42 @@
+{
+  "naver": [
+    {
+      "keyword": "1\n법사위 조희대 대법원장",
+      "rank": 3,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    },
+    {
+      "keyword": "1",
+      "rank": 4,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    },
+    {
+      "keyword": "법사위 조희대 대법원장",
+      "rank": 5,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    },
+    {
+      "keyword": "2\n은마아파트 오세훈 서울시장",
+      "rank": 7,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    },
+    {
+      "keyword": "2",
+      "rank": 8,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    },
+    {
+      "keyword": "은마아파트 오세훈 서울시장",
+      "rank": 9,
+      "source": "naver",
+      "selector": "[class*=\"rank\"]"
+    }
+  ],
+  "google": [],
+  "success": true
+}
