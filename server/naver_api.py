@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
-import pandas as pd
 import time
 import urllib.parse
 import urllib.request
@@ -74,7 +73,7 @@ class Signature:
             print(f"[ERROR] API 응답 전체: {response_data}")
             raise Exception(f"API 오류: {response_data.get('message', '알 수 없는 오류')}")
 
-        return pd.DataFrame(response_data['keywordList'])
+        return response_data['keywordList']
 
 # API 키 로드
 def load_api_keys():
@@ -122,24 +121,26 @@ def search_keywords():
         signature_obj = Signature()
 
         # 연관 키워드 조회
-        df = signature_obj.getresults(keyword)
+        keyword_list = signature_obj.getresults(keyword)
 
-        df.rename({
-            'relKeyword':'연관키워드',
-            'monthlyPcQcCnt':'모바일검색량',
-            'monthlyMobileQcCnt':'PC검색량',
-            'compIdx':'경쟁강도'
-        }, axis=1, inplace=True)
+        # 데이터 변환
+        result_data = []
+        for item in keyword_list:
+            mobile = int(str(item.get('monthlyMobileQcCnt', 0)).replace('<', '').strip())
+            pc = int(str(item.get('monthlyPcQcCnt', 0)).replace('<', '').strip())
 
-        df['모바일검색량'] = df['모바일검색량'].apply(lambda x: int(str(x).replace('<', '').strip()))
-        df['PC검색량'] = df['PC검색량'].apply(lambda x: int(str(x).replace('<', '').strip()))
-        df['총검색량'] = df['모바일검색량'] + df['PC검색량']
-        df = df[['연관키워드', '모바일검색량','PC검색량','총검색량','경쟁강도']]
+            result_data.append({
+                '연관키워드': item.get('relKeyword', ''),
+                '모바일검색량': mobile,
+                'PC검색량': pc,
+                '총검색량': mobile + pc,
+                '경쟁강도': item.get('compIdx', '')
+            })
 
         return jsonify({
             'success': True,
-            'data': df.to_dict('records'),
-            'total': len(df)
+            'data': result_data,
+            'total': len(result_data)
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -148,15 +149,14 @@ def search_keywords():
 def analyze_competition():
     try:
         keywords_data = request.json['keywords']
-        df = pd.DataFrame(keywords_data)
 
-        total_values_list = []
-
-        for idx, text in enumerate(df['연관키워드']):
+        # 총문서수 조회
+        for idx, item in enumerate(keywords_data):
+            keyword = item['연관키워드']
             client_id = search_userkey_list[0]
             client_secret = search_userkey_list[1]
 
-            encText = urllib.parse.quote(text)
+            encText = urllib.parse.quote(keyword)
             url = "https://openapi.naver.com/v1/search/blog?query=" + encText
 
             req = urllib.request.Request(url)
@@ -169,26 +169,53 @@ def analyze_competition():
             if rescode == 200:
                 response_body = response.read()
                 total_num = response_body.decode('utf-8')
-                total_values_list.append(json.loads(total_num)['total'])
+                item['총문서수'] = json.loads(total_num)['total']
+            else:
+                item['총문서수'] = 0
+
+            # 경쟁률 계산
+            if item['총문서수'] > 0:
+                item['경쟁률'] = item['총검색량'] / item['총문서수']
+            else:
+                item['경쟁률'] = 0
 
             # 진행률 업데이트
             progress_status["current"] = idx + 1
-            progress_status["total"] = len(df)
-            progress_status["message"] = f"{text} 분석 완료"
+            progress_status["total"] = len(keywords_data)
+            progress_status["message"] = f"{keyword} 분석 완료"
 
             time.sleep(0.05)  # API 호출 제한 방지
 
-        df['총문서수'] = total_values_list
-        df['경쟁률'] = df['총검색량'] / df['총문서수']
-
-        # 엑셀 파일 저장
+        # 엑셀 파일 저장 (openpyxl 사용)
+        from openpyxl import Workbook
         now = datetime.now()
         filename = f'키워드분석_{now.strftime("%Y%m%d_%H%M%S")}.xlsx'
-        df.to_excel(filename, index=False)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "키워드 분석"
+
+        # 헤더
+        headers = ['연관키워드', '모바일검색량', 'PC검색량', '총검색량', '경쟁강도', '총문서수', '경쟁률']
+        ws.append(headers)
+
+        # 데이터
+        for item in keywords_data:
+            ws.append([
+                item.get('연관키워드', ''),
+                item.get('모바일검색량', 0),
+                item.get('PC검색량', 0),
+                item.get('총검색량', 0),
+                item.get('경쟁강도', ''),
+                item.get('총문서수', 0),
+                item.get('경쟁률', 0)
+            ])
+
+        wb.save(filename)
 
         return jsonify({
             'success': True,
-            'data': df.to_dict('records'),
+            'data': keywords_data,
             'filename': filename
         })
     except Exception as e:
