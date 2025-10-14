@@ -149,7 +149,11 @@ def load_api_keys():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return jsonify({
+        'status': 'ok',
+        'message': 'Keyword Insight Pro API Server',
+        'version': '1.0.0'
+    })
 
 @app.route('/search_keywords', methods=['POST'])
 def search_keywords():
@@ -413,4 +417,5 @@ def get_trending_keywords():
 
 if __name__ == '__main__':
     load_api_keys()
-    app.run(debug=True, port=8080)
+    port = int(os.getenv('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
