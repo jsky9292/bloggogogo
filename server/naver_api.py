@@ -79,36 +79,73 @@ class Signature:
 def load_api_keys():
     global ad_userkey_list, search_userkey_list, google_youtube_keys
 
-    # 광고 API 키 로드
-    ad_userkey_list = []
-    with open('ad_key.txt', 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.strip().replace(" ","").split(':')[-1]
-            ad_userkey_list.append(line)
-
-    # 검색 API 키 로드
-    search_userkey_list = []
-    with open('search_key.txt', 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.strip().replace(" ","").split(':')[-1]
-            search_userkey_list.append(line)
-
-    # Google & YouTube API 키 로드
-    google_youtube_keys = {}
+    # 환경 변수에서 먼저 시도, 없으면 파일에서 로드
     try:
-        with open('google_youtube_key.txt', 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                parts = line.strip().replace(" ","").split(':')
-                if len(parts) >= 2:
-                    key = parts[0]
-                    value = ':'.join(parts[1:])  # API 키에 :가 포함될 수 있음
-                    google_youtube_keys[key] = value
-            print(f"[INFO] Google/YouTube API 키 로드 완료: {list(google_youtube_keys.keys())}")
-    except FileNotFoundError:
-        print("Warning: google_youtube_key.txt not found. Google/YouTube features will be disabled.")
+        # 광고 API 키 로드
+        if os.getenv('NAVER_AD_API_KEY'):
+            # 환경 변수에서 로드 (Render.com)
+            ad_userkey_list = [
+                os.getenv('NAVER_AD_API_KEY'),
+                os.getenv('NAVER_AD_SECRET_KEY'),
+                os.getenv('NAVER_CUSTOMER_ID')
+            ]
+            print("[INFO] 네이버 광고 API 키 환경 변수에서 로드 완료")
+        else:
+            # 파일에서 로드 (로컬)
+            ad_userkey_list = []
+            with open('ad_key.txt', 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.strip().replace(" ","").split(':')[-1]
+                    ad_userkey_list.append(line)
+            print("[INFO] 네이버 광고 API 키 파일에서 로드 완료")
+
+        # 검색 API 키 로드
+        if os.getenv('NAVER_SEARCH_CLIENT_ID'):
+            # 환경 변수에서 로드 (Render.com)
+            search_userkey_list = [
+                os.getenv('NAVER_SEARCH_CLIENT_ID'),
+                os.getenv('NAVER_SEARCH_CLIENT_SECRET')
+            ]
+            print("[INFO] 네이버 검색 API 키 환경 변수에서 로드 완료")
+        else:
+            # 파일에서 로드 (로컬)
+            search_userkey_list = []
+            with open('search_key.txt', 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    line = line.strip().replace(" ","").split(':')[-1]
+                    search_userkey_list.append(line)
+            print("[INFO] 네이버 검색 API 키 파일에서 로드 완료")
+
+        # Google & YouTube API 키 로드
+        if os.getenv('GOOGLE_API_KEY'):
+            # 환경 변수에서 로드 (Render.com)
+            google_youtube_keys = {
+                'google_api_key': os.getenv('GOOGLE_API_KEY'),
+                'google_search_engine_id': os.getenv('GOOGLE_SEARCH_ENGINE_ID'),
+                'youtube_api_key': os.getenv('YOUTUBE_API_KEY')
+            }
+            print("[INFO] Google/YouTube API 키 환경 변수에서 로드 완료")
+        else:
+            # 파일에서 로드 (로컬)
+            google_youtube_keys = {}
+            try:
+                with open('google_youtube_key.txt', 'r') as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        parts = line.strip().replace(" ","").split(':')
+                        if len(parts) >= 2:
+                            key = parts[0]
+                            value = ':'.join(parts[1:])  # API 키에 :가 포함될 수 있음
+                            google_youtube_keys[key] = value
+                print(f"[INFO] Google/YouTube API 키 파일에서 로드 완료: {list(google_youtube_keys.keys())}")
+            except FileNotFoundError:
+                print("[WARNING] google_youtube_key.txt not found. Google/YouTube features will be disabled.")
+
+    except Exception as e:
+        print(f"[ERROR] API 키 로드 실패: {str(e)}")
+        raise
 
 @app.route('/')
 def index():
