@@ -27,8 +27,11 @@ export async function searchNaverKeywords(keyword: string): Promise<NaverKeyword
   }
 }
 
-export async function analyzeNaverCompetition(keywords: NaverKeywordData[]): Promise<NaverKeywordData[]> {
+export async function analyzeNaverCompetition(keywords: NaverKeywordData[]): Promise<{ data: NaverKeywordData[]; filename: string }> {
   try {
+    console.log('[DEBUG] API 요청:', `${FLASK_API_URL}/analyze_competition`);
+    console.log('[DEBUG] 요청 키워드 수:', keywords.length);
+
     const response = await fetch(`${FLASK_API_URL}/analyze_competition`, {
       method: 'POST',
       headers: {
@@ -37,14 +40,29 @@ export async function analyzeNaverCompetition(keywords: NaverKeywordData[]): Pro
       body: JSON.stringify({ keywords }),
     });
 
+    console.log('[DEBUG] API 응답 상태:', response.status, response.statusText);
+
+    if (!response.ok) {
+      throw new Error(`API 오류: ${response.status} ${response.statusText}`);
+    }
+
     const result = await response.json();
+    console.log('[DEBUG] API 응답 데이터:', result);
 
     if (!result.success) {
       throw new Error(result.error || '경쟁 분석에 실패했습니다.');
     }
 
-    return result.data;
+    if (!result.data || !Array.isArray(result.data)) {
+      throw new Error('API 응답 형식이 올바르지 않습니다.');
+    }
+
+    return {
+      data: result.data,
+      filename: result.filename || ''
+    };
   } catch (error) {
+    console.error('[ERROR] analyzeNaverCompetition:', error);
     if (error instanceof Error) {
       throw error;
     }

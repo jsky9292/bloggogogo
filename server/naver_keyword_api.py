@@ -106,14 +106,16 @@ def load_api_keys():
     except FileNotFoundError:
         print("Warning: google_youtube_key.txt not found. Google/YouTube features will be disabled.")
 
-@app.route('/api/naver/search_keywords', methods=['POST'])
+@app.route('/search_keywords', methods=['POST'])
 def search_keywords():
     try:
         keyword = request.json['keyword']
+        print(f"[INFO] 키워드 검색 요청: {keyword}")
         signature_obj = Signature()
 
         # 연관 키워드 조회
         df = signature_obj.getresults(keyword)
+        print(f"[INFO] 조회된 키워드 수: {len(df)}")
 
         df.rename({
             'relKeyword':'연관키워드',
@@ -133,44 +135,58 @@ def search_keywords():
             'total': len(df)
         })
     except Exception as e:
+        print(f"[ERROR] 키워드 검색 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/naver/analyze_competition', methods=['POST'])
+@app.route('/analyze_competition', methods=['POST'])
 def analyze_competition():
     try:
         keywords_data = request.json['keywords']
+        print(f"[INFO] 경쟁도 분석 요청: {len(keywords_data)}개 키워드")
         df = pd.DataFrame(keywords_data)
 
         total_values_list = []
 
         for idx, text in enumerate(df['연관키워드']):
-            client_id = search_userkey_list[0]
-            client_secret = search_userkey_list[1]
+            try:
+                client_id = search_userkey_list[0]
+                client_secret = search_userkey_list[1]
 
-            encText = urllib.parse.quote(text)
-            url = "https://openapi.naver.com/v1/search/blog?query=" + encText
+                encText = urllib.parse.quote(text)
+                url = "https://openapi.naver.com/v1/search/blog?query=" + encText
 
-            req = urllib.request.Request(url)
-            req.add_header("X-Naver-Client-Id", client_id)
-            req.add_header("X-Naver-Client-Secret", client_secret)
+                req = urllib.request.Request(url)
+                req.add_header("X-Naver-Client-Id", client_id)
+                req.add_header("X-Naver-Client-Secret", client_secret)
 
-            response = urllib.request.urlopen(req)
-            rescode = response.getcode()
+                response = urllib.request.urlopen(req)
+                rescode = response.getcode()
 
-            if rescode == 200:
-                response_body = response.read()
-                total_num = response_body.decode('utf-8')
-                total_values_list.append(json.loads(total_num)['total'])
+                if rescode == 200:
+                    response_body = response.read()
+                    total_num = response_body.decode('utf-8')
+                    total = json.loads(total_num)['total']
+                    total_values_list.append(total)
+                    print(f"[INFO] {text}: 총문서수 {total}")
+                else:
+                    print(f"[WARNING] {text}: API 응답 코드 {rescode}")
+                    total_values_list.append(0)
 
-            # 진행률 업데이트
-            progress_status["current"] = idx + 1
-            progress_status["total"] = len(df)
-            progress_status["message"] = f"{text} 분석 완료"
+                # 진행률 업데이트
+                progress_status["current"] = idx + 1
+                progress_status["total"] = len(df)
+                progress_status["message"] = f"{text} 분석 완료"
 
-            time.sleep(0.05)  # API 호출 제한 방지
+                time.sleep(0.05)  # API 호출 제한 방지
+            except Exception as e:
+                print(f"[ERROR] {text} 분석 실패: {str(e)}")
+                total_values_list.append(0)
 
         df['총문서수'] = total_values_list
         df['경쟁률'] = df['총검색량'] / df['총문서수']
+
+        print(f"[INFO] 경쟁도 분석 완료")
+        print(f"[DEBUG] 첫 번째 데이터: {df.iloc[0].to_dict()}")
 
         # 엑셀 파일 저장
         now = datetime.now()
@@ -178,6 +194,7 @@ def analyze_competition():
         current_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(current_dir, filename)
         df.to_excel(file_path, index=False)
+        print(f"[INFO] 엑셀 파일 저장: {filename}")
 
         return jsonify({
             'success': True,
@@ -185,15 +202,18 @@ def analyze_competition():
             'filename': filename
         })
     except Exception as e:
+        print(f"[ERROR] 경쟁도 분석 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 
-@app.route('/api/naver/progress')
+@app.route('/progress')
 def get_progress():
     return jsonify(progress_status)
 
 
-@app.route('/api/naver/download/<filename>')
+@app.route('/download/<filename>')
 def download_file(filename):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, filename)

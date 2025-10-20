@@ -23,6 +23,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
   const [videosLoading, setVideosLoading] = useState(true);
   const [naverKeywords, setNaverKeywords] = useState<{ keyword: string; rank: number }[]>([]);
   const [googleKeywords, setGoogleKeywords] = useState<{ keyword: string; rank: number }[]>([]);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -825,7 +826,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{
             textAlign: 'center',
-            marginBottom: '3.5rem'
+            marginBottom: '2rem'
           }}>
             <h2 style={{
               fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
@@ -837,10 +838,69 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
             </h2>
             <p style={{
               fontSize: '1rem',
-              color: '#6b7280'
+              color: '#6b7280',
+              marginBottom: '2rem'
             }}>
               필요에 맞는 플랜을 선택하세요
             </p>
+
+            {/* 월/년 토글 */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '100px',
+              padding: '0.25rem',
+              gap: '0.25rem'
+            }}>
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  background: billingCycle === 'monthly' ? '#6891f8' : 'transparent',
+                  color: billingCycle === 'monthly' ? '#ffffff' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '100px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                월 단위
+              </button>
+              <button
+                onClick={() => setBillingCycle('yearly')}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  background: billingCycle === 'yearly' ? '#6891f8' : 'transparent',
+                  color: billingCycle === 'yearly' ? '#ffffff' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '100px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  position: 'relative'
+                }}
+              >
+                연 단위
+                <span style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: '#10b981',
+                  color: '#ffffff',
+                  fontSize: '0.625rem',
+                  padding: '0.125rem 0.375rem',
+                  borderRadius: '100px',
+                  fontWeight: '700'
+                }}>
+                  20% 할인
+                </span>
+              </button>
+            </div>
           </div>
 
           <div style={{
@@ -851,38 +911,65 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
             {[
               {
                 name: 'Free Trial',
-                price: '₩0',
-                period: '/7일',
+                monthlyPrice: 0,
+                yearlyPrice: 0,
                 features: ['하루 10개 키워드 분석', 'AI 블로그 1개 생성', '경쟁 난이도 분석', '검색량 트렌드 확인', '7일 무료 체험'],
                 cta: '지금 무료로 시작',
                 popular: false,
-                badge: '7일 체험'
+                badge: '7일 체험',
+                isTrial: true
               },
               {
                 name: 'Basic',
-                price: '₩19,900',
-                period: '/월',
+                monthlyPrice: 19900,
+                yearlyPrice: 191040, // 19,900 * 12 * 0.8 (20% 할인)
                 features: ['하루 30개 키워드 분석', 'AI 블로그 10개 생성', '상위 10개 경쟁사 분석', '키워드 저장 100개', '이메일 리포트'],
                 cta: 'Basic 시작하기',
                 popular: false
               },
               {
                 name: 'Professional',
-                price: '₩39,900',
-                period: '/월',
+                monthlyPrice: 39900,
+                yearlyPrice: 383040, // 39,900 * 12 * 0.8 (20% 할인)
                 features: ['하루 100개 키워드 분석', 'AI 블로그 무제한', '실시간 순위 모니터링', '무제한 키워드 저장', '카카오톡 알림'],
                 cta: 'Pro 시작하기',
                 popular: true
               },
               {
                 name: 'Enterprise',
-                price: '맞춤 견적',
-                period: '',
+                monthlyPrice: null,
+                yearlyPrice: null,
                 features: ['무제한 모든 기능', '다중 사용자 계정', 'API 연동 제공', '1:1 전담 매니저', '맞춤 기능 개발'],
                 cta: '상담 요청하기',
-                popular: false
+                popular: false,
+                isEnterprise: true
               }
-            ].map((plan, index) => (
+            ].map((plan, index) => {
+              const getPrice = () => {
+                if (plan.isTrial) return '₩0';
+                if (plan.isEnterprise) return '맞춤 견적';
+
+                const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                return `₩${price?.toLocaleString()}`;
+              };
+
+              const getPeriod = () => {
+                if (plan.isTrial) return '/7일';
+                if (plan.isEnterprise) return '';
+                return billingCycle === 'monthly' ? '/월' : '/년';
+              };
+
+              const getSavings = () => {
+                if (billingCycle === 'yearly' && !plan.isTrial && !plan.isEnterprise && plan.monthlyPrice) {
+                  const monthlyCost = plan.monthlyPrice * 12;
+                  const yearlyCost = plan.yearlyPrice!;
+                  const savings = monthlyCost - yearlyCost;
+                  return `연 ₩${savings.toLocaleString()} 절약`;
+                }
+                return null;
+              };
+
+              return (
               <div
                 key={index}
                 style={{
@@ -930,24 +1017,35 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   }}>
                     {plan.name}
                   </h3>
-                  <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
                     <span style={{
                       fontSize: '2rem',
                       fontWeight: '700',
                       color: '#191f28'
                     }}>
-                      {plan.price}
+                      {getPrice()}
                     </span>
-                    {plan.period && (
-                      <span style={{
-                        color: '#9ca3af',
-                        marginLeft: '0.375rem',
-                        fontSize: '0.875rem'
-                      }}>
-                        {plan.period}
-                      </span>
-                    )}
+                    <span style={{
+                      color: '#9ca3af',
+                      marginLeft: '0.375rem',
+                      fontSize: '0.875rem'
+                    }}>
+                      {getPeriod()}
+                    </span>
                   </div>
+                  {getSavings() && (
+                    <div style={{
+                      fontSize: '0.75rem',
+                      color: '#10b981',
+                      fontWeight: '600',
+                      background: '#d1fae5',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      display: 'inline-block'
+                    }}>
+                      💰 {getSavings()}
+                    </div>
+                  )}
                 </div>
 
                 <ul style={{
@@ -1008,7 +1106,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   {plan.cta}
                 </button>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>

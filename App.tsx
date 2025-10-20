@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSearch } from './hooks/useKeywordSearch';
 import KeywordInputForm from './components/KeywordInputForm';
 import ResultsTable from './components/ResultsTable';
@@ -44,6 +45,7 @@ interface NaverApiKeys {
 }
 
 const App: React.FC = () => {
+    const navigate = useNavigate();
     const { results, loading, error, search, initialLoad, setResults, setError, setInitialLoad, setLoading } = useSearch();
     const [source, setSource] = useState<SearchSource>('google');
     const [feature, setFeature] = useState<Feature>('competition');
@@ -782,7 +784,29 @@ const App: React.FC = () => {
         setNaverKeywordsError(null);
 
         try {
-            const analyzedData = await analyzeNaverCompetition(keywordsToAnalyze);
+            console.log('[DEBUG] 경쟁도 분석 시작:', keywordsToAnalyze.length, '개 키워드');
+
+            const result = await analyzeNaverCompetition(keywordsToAnalyze);
+
+            console.log('[DEBUG] 경쟁도 분석 완료:', result);
+
+            // result가 배열인 경우와 객체인 경우 모두 처리
+            let analyzedData: NaverKeywordData[];
+            let filename: string = '';
+
+            if (Array.isArray(result)) {
+                // 이전 버전 호환성: 배열만 반환하는 경우
+                analyzedData = result;
+                const now = new Date();
+                filename = `키워드분석_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.xlsx`;
+            } else {
+                // 새 버전: data와 filename을 포함한 객체 반환
+                analyzedData = result.data || result;
+                filename = result.filename || '';
+            }
+
+            console.log('[DEBUG] 분석된 데이터:', analyzedData.length, '개');
+            console.log('[DEBUG] 첫 번째 키워드 데이터:', analyzedData[0]);
 
             // 전체 데이터에서 분석된 키워드만 업데이트
             if (naverKeywords) {
@@ -790,14 +814,15 @@ const App: React.FC = () => {
                     const analyzed = analyzedData.find(a => a.연관키워드 === keyword.연관키워드);
                     return analyzed || keyword;
                 });
+                console.log('[DEBUG] 업데이트된 키워드:', updatedKeywords.length, '개');
                 setNaverKeywords(updatedKeywords);
             }
 
-            // 파일명은 서버에서 생성되므로 현재 시간 기반으로 생성
-            const now = new Date();
-            const filename = `키워드분석_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.xlsx`;
-            setNaverExcelFilename(filename);
+            if (filename) {
+                setNaverExcelFilename(filename);
+            }
         } catch (err) {
+            console.error('[ERROR] 경쟁도 분석 오류:', err);
             if (err instanceof Error) {
                 setNaverKeywordsError(err.message);
             } else {
@@ -1342,6 +1367,36 @@ const App: React.FC = () => {
                                     로그인 / 회원가입
                                 </button>
                             )}
+
+                            <button
+                                onClick={() => navigate('/courses')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    color: '#ffffff',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1.05)';
+                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+                                }}
+                            >
+                                <span>🎓</span>
+                                <span>강의</span>
+                            </button>
 
                             <button
                                 onClick={() => setIsVideoTutorialsOpen(true)}
