@@ -931,7 +931,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                 name: 'Professional',
                 monthlyPrice: 39900,
                 yearlyPrice: 383040, // 39,900 * 12 * 0.8 (20% 할인)
-                features: ['하루 100개 키워드 분석', 'AI 블로그 무제한', '실시간 순위 모니터링', '무제한 키워드 저장', '카카오톡 알림'],
+                features: ['1회 검색 100개 포스팅', 'AI 블로그 무제한', '이미지 자동 생성', '무제한 키워드 저장', '이메일 리포트'],
                 cta: 'Pro 시작하기',
                 popular: true
               },
