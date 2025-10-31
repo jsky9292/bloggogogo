@@ -1,29 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { UserProfile, checkUsageLimit } from '../src/config/firebase';
-import ApiKeySettings from './ApiKeySettings';
-
-interface NaverApiKeys {
-  adApiKey: string;
-  searchApiKey: string;
-  adApiSecret: string;
-  searchApiSecret: string;
-}
+import { UserProfile, checkUsageLimit, getDailyUsage, PLAN_DAILY_LIMITS } from '../src/config/firebase';
+import RankingTracker from './RankingTracker';
 
 interface UserDashboardProps {
   user: UserProfile;
   onClose: () => void;
   onUpgradePlan: () => void;
-  onApiKeyUpdate?: (apiKey: string) => void;
-  onNaverApiKeyUpdate?: (keys: NaverApiKeys) => void;
 }
 
 const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan, onApiKeyUpdate, onNaverApiKeyUpdate }) => {
   const [remainingSearches, setRemainingSearches] = useState<number>(0);
   const [hasLimit, setHasLimit] = useState<boolean>(true);
+  const [dailyUsage, setDailyUsage] = useState<{ keywordSearches: number; blogGenerations: number; limit: typeof PLAN_DAILY_LIMITS[keyof typeof PLAN_DAILY_LIMITS] } | null>(null);
 
   useEffect(() => {
     calculateRemainingSearches();
+    fetchDailyUsage();
   }, [user]);
+
+  const fetchDailyUsage = async () => {
+    if (user && user.uid) {
+      const usage = await getDailyUsage(user.uid);
+      setDailyUsage(usage);
+    }
+  };
 
   const calculateRemainingSearches = () => {
     const limits: Record<string, number> = {
@@ -323,58 +323,131 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                   color: '#374151',
                   marginBottom: '12px'
                 }}>오늘의 사용량</h4>
-                {hasLimit ? (
-                  <div>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '8px'
-                    }}>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        color: '#4b5563'
-                      }}>키워드 분석</span>
-                      <span style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: '#111827'
+                {dailyUsage ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* 키워드 검색 */}
+                    <div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px'
                       }}>
-                        {user.usage?.searches || 0} / {remainingSearches + (user.usage?.searches || 0)}
-                      </span>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#4b5563'
+                        }}>키워드 검색</span>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          color: '#111827'
+                        }}>
+                          {dailyUsage.keywordSearches} / {dailyUsage.limit.keywordSearches === -1 ? '∞' : dailyUsage.limit.keywordSearches}
+                        </span>
+                      </div>
+                      {dailyUsage.limit.keywordSearches !== -1 && (
+                        <>
+                          <div style={{
+                            width: '100%',
+                            backgroundColor: '#e5e7eb',
+                            borderRadius: '9999px',
+                            height: '8px'
+                          }}>
+                            <div
+                              style={{
+                                background: 'linear-gradient(to right, #3b82f6, #6366f1)',
+                                height: '8px',
+                                borderRadius: '9999px',
+                                transition: 'all 0.3s',
+                                width: `${Math.min(100, (dailyUsage.keywordSearches / dailyUsage.limit.keywordSearches) * 100)}%`
+                              }}
+                            />
+                          </div>
+                          <p style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                            marginTop: '8px'
+                          }}>
+                            {dailyUsage.limit.keywordSearches - dailyUsage.keywordSearches > 0
+                              ? `오늘 ${dailyUsage.limit.keywordSearches - dailyUsage.keywordSearches}회 더 사용 가능`
+                              : '오늘 사용 가능 횟수를 모두 소진했습니다'}
+                          </p>
+                        </>
+                      )}
+                      {dailyUsage.limit.keywordSearches === -1 && (
+                        <p style={{
+                          fontSize: '0.875rem',
+                          color: '#059669',
+                          fontWeight: '500',
+                          marginTop: '8px'
+                        }}>무제한 사용 가능</p>
+                      )}
                     </div>
-                    <div style={{
-                      width: '100%',
-                      backgroundColor: '#e5e7eb',
-                      borderRadius: '9999px',
-                      height: '8px'
-                    }}>
-                      <div
-                        style={{
-                          background: 'linear-gradient(to right, #3b82f6, #6366f1)',
-                          height: '8px',
-                          borderRadius: '9999px',
-                          transition: 'all 0.3s',
-                          width: `${Math.min(100, ((user.usage?.searches || 0) / (remainingSearches + (user.usage?.searches || 0))) * 100)}%`
-                        }}
-                      />
+
+                    {/* 블로그 생성 */}
+                    <div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#4b5563'
+                        }}>블로그 생성</span>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          color: '#111827'
+                        }}>
+                          {dailyUsage.blogGenerations} / {dailyUsage.limit.blogGenerations === -1 ? '∞' : dailyUsage.limit.blogGenerations}
+                        </span>
+                      </div>
+                      {dailyUsage.limit.blogGenerations !== -1 && (
+                        <>
+                          <div style={{
+                            width: '100%',
+                            backgroundColor: '#e5e7eb',
+                            borderRadius: '9999px',
+                            height: '8px'
+                          }}>
+                            <div
+                              style={{
+                                background: 'linear-gradient(to right, #10b981, #14b8a6)',
+                                height: '8px',
+                                borderRadius: '9999px',
+                                transition: 'all 0.3s',
+                                width: `${Math.min(100, (dailyUsage.blogGenerations / dailyUsage.limit.blogGenerations) * 100)}%`
+                              }}
+                            />
+                          </div>
+                          <p style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                            marginTop: '8px'
+                          }}>
+                            {dailyUsage.limit.blogGenerations - dailyUsage.blogGenerations > 0
+                              ? `오늘 ${dailyUsage.limit.blogGenerations - dailyUsage.blogGenerations}회 더 생성 가능`
+                              : '오늘 생성 가능 횟수를 모두 소진했습니다'}
+                          </p>
+                        </>
+                      )}
+                      {dailyUsage.limit.blogGenerations === -1 && (
+                        <p style={{
+                          fontSize: '0.875rem',
+                          color: '#059669',
+                          fontWeight: '500',
+                          marginTop: '8px'
+                        }}>무제한 생성 가능</p>
+                      )}
                     </div>
-                    <p style={{
-                      fontSize: '0.875rem',
-                      color: '#6b7280',
-                      marginTop: '8px'
-                    }}>
-                      {remainingSearches > 0
-                        ? `오늘 ${remainingSearches}회 더 사용 가능`
-                        : '오늘 사용 가능 횟수를 모두 소진했습니다'}
-                    </p>
                   </div>
                 ) : (
                   <p style={{
                     fontSize: '0.875rem',
-                    color: '#059669',
-                    fontWeight: '500'
-                  }}>무제한 사용 가능</p>
+                    color: '#6b7280'
+                  }}>사용량 로딩 중...</p>
                 )}
               </div>
             </div>
@@ -456,19 +529,77 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                       padding: '16px 24px',
                       fontSize: '0.875rem',
                       textAlign: 'center'
-                    }}>14일 무료 체험</td>
+                    }}>7일 무료 체험</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
                       textAlign: 'center'
-                    }}>50회</td>
+                    }}>₩19,900/월</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
                       textAlign: 'center',
                       fontWeight: '600',
                       color: '#2563eb'
-                    }}>200회</td>
+                    }}>₩29,900/월</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>문의</td>
+                  </tr>
+                  <tr style={{ borderTop: '1px solid #e5e7eb' }}>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      color: '#111827'
+                    }}>일일 키워드 검색</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>10회</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>30회</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center',
+                      fontWeight: '600',
+                      color: '#2563eb'
+                    }}>100회</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>무제한</td>
+                  </tr>
+                  <tr style={{ borderTop: '1px solid #e5e7eb' }}>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      color: '#111827'
+                    }}>일일 블로그 생성</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>1회</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center'
+                    }}>10회</td>
+                    <td style={{
+                      padding: '16px 24px',
+                      fontSize: '0.875rem',
+                      textAlign: 'center',
+                      fontWeight: '600',
+                      color: '#2563eb'
+                    }}>무제한</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',

@@ -33,7 +33,7 @@ import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './s
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
 import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
 import { config } from './src/config/appConfig';
-import { updateAdminAccount, saveNaverApiKeys, getNaverApiKeys, checkUsageLimit, checkSubscriptionExpiry } from './src/config/firebase';
+import { updateAdminAccount, saveNaverApiKeys, getNaverApiKeys, checkUsageLimit, checkSubscriptionExpiry, checkDailyLimit, incrementDailyUsage, PLAN_DAILY_LIMITS } from './src/config/firebase';
 import type { NaverApiKeys as FirebaseNaverApiKeys } from './src/config/firebase';
 
 interface NaverApiKeys {
@@ -197,6 +197,16 @@ const App: React.FC = () => {
         }
     }, [currentUser?.email, currentUser?.uid]);
 
+    // ✅ 검색 성공 시 일일 사용량 증가
+    useEffect(() => {
+        if (config.mode === 'saas' && currentUser && results.length > 0 && !loading && !error) {
+            // 검색이 성공적으로 완료되었을 때만 증가
+            incrementDailyUsage(currentUser.uid, 'keywordSearches').catch((error) => {
+                console.error('일일 사용량 증가 오류:', error);
+            });
+        }
+    }, [results, loading, error, currentUser?.uid]);
+
     const handleFeatureSelect = (newFeature: Feature) => {
         if (feature === newFeature) return;
 
@@ -277,6 +287,31 @@ const App: React.FC = () => {
                         setIsUserDashboardOpen(true);
                     }
 
+                    return; // 검색 중단
+                }
+
+                // 3. 일일 사용량 체크
+                const dailyLimitCheck = await checkDailyLimit(currentUser.uid, 'keywordSearches');
+
+                if (!dailyLimitCheck.canUse) {
+                    const limit = dailyLimitCheck.limit;
+                    const planName = currentUser.plan === 'free' ? 'Free' : currentUser.plan === 'basic' ? 'Basic' : currentUser.plan === 'pro' ? 'Pro' : 'Enterprise';
+
+                    const confirmUpgrade = confirm(
+                        `⏰ 오늘의 키워드 검색 한도를 초과했습니다\n\n` +
+                        `현재 플랜: ${planName}\n` +
+                        `일일 한도: ${limit}회\n` +
+                        `사용량: ${dailyLimitCheck.current}/${limit}\n\n` +
+                        `더 많은 검색을 원하시면 플랜을 업그레이드해주세요.\n\n` +
+                        `✅ Basic: 일 30회 검색 (월 ₩19,900)\n` +
+                        `✅ Pro: 일 100회 검색 (월 ₩29,900)\n` +
+                        `✅ Enterprise: 무제한 (문의)\n\n` +
+                        `대시보드로 이동하시겠습니까?`
+                    );
+
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
                     return; // 검색 중단
                 }
             } catch (error) {
@@ -469,6 +504,31 @@ const App: React.FC = () => {
                     }
                     return;
                 }
+
+                // 3. 일일 블로그 생성 한도 체크
+                const dailyLimitCheck = await checkDailyLimit(currentUser.uid, 'blogGenerations');
+
+                if (!dailyLimitCheck.canUse) {
+                    const limit = dailyLimitCheck.limit;
+                    const planName = currentUser.plan === 'free' ? 'Free' : currentUser.plan === 'basic' ? 'Basic' : currentUser.plan === 'pro' ? 'Pro' : 'Enterprise';
+
+                    const confirmUpgrade = confirm(
+                        `⏰ 오늘의 블로그 생성 한도를 초과했습니다\n\n` +
+                        `현재 플랜: ${planName}\n` +
+                        `일일 한도: ${limit}회\n` +
+                        `사용량: ${dailyLimitCheck.current}/${limit}\n\n` +
+                        `더 많은 블로그를 생성하시려면 플랜을 업그레이드해주세요.\n\n` +
+                        `✅ Basic: 일 10회 생성 (월 ₩19,900)\n` +
+                        `✅ Pro: 무제한 생성 (월 ₩29,900)\n` +
+                        `✅ Enterprise: 무제한 (문의)\n\n` +
+                        `대시보드로 이동하시겠습니까?`
+                    );
+
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
+                    return;
+                }
             } catch (error) {
                 console.error('구독 상태 확인 오류:', error);
                 alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.');
@@ -496,6 +556,11 @@ const App: React.FC = () => {
 
             const post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, options.tone, options.contentFormat);
             setBlogPost({ ...post, platform: topic.platform });
+
+            // ✅ 블로그 생성 성공 시 일일 사용량 증가
+            if (config.mode === 'saas' && currentUser) {
+                await incrementDailyUsage(currentUser.uid, 'blogGenerations');
+            }
         } catch (err) {
             if (err instanceof Error) {
                 setBlogPostError(err.message);
@@ -574,6 +639,11 @@ const App: React.FC = () => {
 
             if (result) {
                 setBlogPost({ ...result, platform: suggestion.platform });
+
+                // ✅ 블로그 생성 성공 시 일일 사용량 증가
+                if (config.mode === 'saas' && currentUser) {
+                    await incrementDailyUsage(currentUser.uid, 'blogGenerations');
+                }
             } else {
                 throw new Error('블로그 글 생성 결과가 없습니다.');
             }
@@ -632,6 +702,11 @@ const App: React.FC = () => {
             );
 
             setBlogPost({ ...result, platform: topic.platform });
+
+            // ✅ 블로그 생성 성공 시 일일 사용량 증가
+            if (config.mode === 'saas' && currentUser) {
+                await incrementDailyUsage(currentUser.uid, 'blogGenerations');
+            }
         } catch (err) {
             console.error('Error in executeGenerateBlogPostFromSustainable:', err);
             if (err instanceof Error) {
@@ -696,6 +771,11 @@ const App: React.FC = () => {
             );
 
             setSerpBlogPost({ ...result, platform: suggestion.platform });
+
+            // ✅ 블로그 생성 성공 시 일일 사용량 증가
+            if (config.mode === 'saas' && currentUser) {
+                await incrementDailyUsage(currentUser.uid, 'blogGenerations');
+            }
         } catch (err) {
             if (err instanceof Error) {
                 setSerpBlogPostError(err.message);
@@ -745,6 +825,11 @@ const App: React.FC = () => {
             );
 
             setPaaBlogPost({ ...result, platform: paaItem.platform });
+
+            // ✅ 블로그 생성 성공 시 일일 사용량 증가
+            if (config.mode === 'saas' && currentUser) {
+                await incrementDailyUsage(currentUser.uid, 'blogGenerations');
+            }
         } catch (err) {
             if (err instanceof Error) {
                 setPaaBlogPostError(err.message);

@@ -44,7 +44,20 @@ export interface UserProfile {
     searches: number;
     lastReset: Date;
   };
+  dailyUsage?: {
+    keywordSearches: number;
+    blogGenerations: number;
+    lastResetDate: string; // YYYY-MM-DD 형식
+  };
 }
+
+// 플랜별 일일 사용량 제한
+export const PLAN_DAILY_LIMITS = {
+  free: { keywordSearches: 10, blogGenerations: 1 },
+  basic: { keywordSearches: 30, blogGenerations: 10 },
+  pro: { keywordSearches: 100, blogGenerations: -1 }, // -1 = 무제한
+  enterprise: { keywordSearches: -1, blogGenerations: -1 } // -1 = 무제한
+};
 
 // 회원가입 함수
 export const registerUser = async (email: string, password: string, name: string): Promise<UserProfile> => {
@@ -435,6 +448,138 @@ export const getNaverApiKeys = async (uid: string): Promise<NaverApiKeys | null>
     return userData.naverApiKeys || null;
   } catch (error) {
     console.error('Error getting Naver API keys:', error);
+    return null;
+  }
+};
+
+// 오늘 날짜를 YYYY-MM-DD 형식으로 반환
+const getTodayString = (): string => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
+// 일일 사용량 초기화가 필요한지 확인
+const needsDailyReset = (lastResetDate?: string): boolean => {
+  if (!lastResetDate) return true;
+  return lastResetDate !== getTodayString();
+};
+
+// 일일 사용량 체크 함수
+export const checkDailyLimit = async (uid: string, type: 'keywordSearches' | 'blogGenerations'): Promise<{ canUse: boolean; current: number; limit: number }> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) {
+      return { canUse: false, current: 0, limit: 0 };
+    }
+
+    const userData = userDoc.data() as UserProfile;
+    const plan = userData.plan;
+    const limits = PLAN_DAILY_LIMITS[plan];
+    const limit = limits[type];
+
+    // -1은 무제한
+    if (limit === -1) {
+      return { canUse: true, current: 0, limit: -1 };
+    }
+
+    // Enterprise는 무제한
+    if (plan === 'enterprise') {
+      return { canUse: true, current: 0, limit: -1 };
+    }
+
+    // 일일 사용량 초기화 확인
+    if (needsDailyReset(userData.dailyUsage?.lastResetDate)) {
+      // 날짜가 바뀌었으므로 사용량 초기화
+      const newDailyUsage = {
+        keywordSearches: 0,
+        blogGenerations: 0,
+        lastResetDate: getTodayString()
+      };
+
+      await updateUserProfile(uid, { dailyUsage: newDailyUsage });
+
+      console.log(`[checkDailyLimit] ${userData.email}: 일일 사용량 초기화됨`);
+      return { canUse: true, current: 0, limit };
+    }
+
+    // 현재 사용량 확인
+    const current = userData.dailyUsage?.[type] || 0;
+
+    console.log(`[checkDailyLimit] ${userData.email}: ${type} = ${current}/${limit} (플랜: ${plan})`);
+
+    if (current >= limit) {
+      console.log(`[checkDailyLimit] ${userData.email}: 일일 사용량 초과 - 차단`);
+      return { canUse: false, current, limit };
+    }
+
+    return { canUse: true, current, limit };
+
+  } catch (error) {
+    console.error('Daily limit check error:', error);
+    return { canUse: false, current: 0, limit: 0 };
+  }
+};
+
+// 일일 사용량 증가 함수
+export const incrementDailyUsage = async (uid: string, type: 'keywordSearches' | 'blogGenerations'): Promise<void> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) return;
+
+    const userData = userDoc.data() as UserProfile;
+
+    // 일일 사용량 초기화 확인
+    let dailyUsage = userData.dailyUsage || {
+      keywordSearches: 0,
+      blogGenerations: 0,
+      lastResetDate: getTodayString()
+    };
+
+    if (needsDailyReset(dailyUsage.lastResetDate)) {
+      dailyUsage = {
+        keywordSearches: 0,
+        blogGenerations: 0,
+        lastResetDate: getTodayString()
+      };
+    }
+
+    // 사용량 증가
+    dailyUsage[type] = (dailyUsage[type] || 0) + 1;
+
+    await updateUserProfile(uid, { dailyUsage });
+
+    console.log(`[incrementDailyUsage] ${userData.email}: ${type} 증가 → ${dailyUsage[type]}`);
+  } catch (error) {
+    console.error('Increment daily usage error:', error);
+  }
+};
+
+// 일일 사용량 조회 함수
+export const getDailyUsage = async (uid: string): Promise<{ keywordSearches: number; blogGenerations: number; limit: typeof PLAN_DAILY_LIMITS[keyof typeof PLAN_DAILY_LIMITS] } | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) return null;
+
+    const userData = userDoc.data() as UserProfile;
+    const plan = userData.plan;
+    const limits = PLAN_DAILY_LIMITS[plan];
+
+    // 일일 사용량 초기화 확인
+    if (needsDailyReset(userData.dailyUsage?.lastResetDate)) {
+      return {
+        keywordSearches: 0,
+        blogGenerations: 0,
+        limit: limits
+      };
+    }
+
+    return {
+      keywordSearches: userData.dailyUsage?.keywordSearches || 0,
+      blogGenerations: userData.dailyUsage?.blogGenerations || 0,
+      limit: limits
+    };
+  } catch (error) {
+    console.error('Get daily usage error:', error);
     return null;
   }
 };
