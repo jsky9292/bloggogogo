@@ -259,12 +259,22 @@ const App: React.FC = () => {
 
                 if (!isSubscriptionValid || !canUse) {
                     // 구독이 만료되었거나 사용 제한 초과
-                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const confirmUpgrade = confirm(
+                        '⏰ 구독 기간이 만료되었습니다\n\n' +
+                        '계속 이용하시려면 플랜을 업그레이드해주세요.\n\n' +
+                        '✅ Basic: 월 ₩9,900 (무제한 검색)\n' +
+                        '✅ Pro: 월 ₩29,900 (무제한 검색 + AI 고급 기능)\n\n' +
+                        '대시보드로 이동하시겠습니까?'
+                    );
 
                     // 사용자 정보 갱신 (플랜이 free로 변경되었을 수 있음)
                     const updatedUser = { ...currentUser, plan: 'free' };
                     setCurrentUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
 
                     return; // 검색 중단
                 }
@@ -371,10 +381,19 @@ const App: React.FC = () => {
                 const canUse = await checkUsageLimit(currentUser.uid);
 
                 if (!isSubscriptionValid || !canUse) {
-                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const confirmUpgrade = confirm(
+                        '⏰ 구독 기간이 만료되었습니다\n\n' +
+                        '계속 이용하시려면 플랜을 업그레이드해주세요.\n\n' +
+                        '✅ Basic: 월 ₩9,900 (무제한 검색)\n' +
+                        '✅ Pro: 월 ₩29,900 (무제한 검색 + AI 고급 기능)\n\n' +
+                        '대시보드로 이동하시겠습니까?'
+                    );
                     const updatedUser = { ...currentUser, plan: 'free' };
                     setCurrentUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
                     return;
                 }
             } catch (error) {
@@ -434,10 +453,19 @@ const App: React.FC = () => {
                 const canUse = await checkUsageLimit(currentUser.uid);
 
                 if (!isSubscriptionValid || !canUse) {
-                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const confirmUpgrade = confirm(
+                        '⏰ 구독 기간이 만료되었습니다\n\n' +
+                        '계속 이용하시려면 플랜을 업그레이드해주세요.\n\n' +
+                        '✅ Basic: 월 ₩9,900 (무제한 검색)\n' +
+                        '✅ Pro: 월 ₩29,900 (무제한 검색 + AI 고급 기능)\n\n' +
+                        '대시보드로 이동하시겠습니까?'
+                    );
                     const updatedUser = { ...currentUser, plan: 'free' };
                     setCurrentUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
                     return;
                 }
             } catch (error) {
@@ -794,10 +822,19 @@ const App: React.FC = () => {
                 const canUse = await checkUsageLimit(currentUser.uid);
 
                 if (!isSubscriptionValid || !canUse) {
-                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const confirmUpgrade = confirm(
+                        '⏰ 구독 기간이 만료되었습니다\n\n' +
+                        '계속 이용하시려면 플랜을 업그레이드해주세요.\n\n' +
+                        '✅ Basic: 월 ₩9,900 (무제한 검색)\n' +
+                        '✅ Pro: 월 ₩29,900 (무제한 검색 + AI 고급 기능)\n\n' +
+                        '대시보드로 이동하시겠습니까?'
+                    );
                     const updatedUser = { ...currentUser, plan: 'free' };
                     setCurrentUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
                     return;
                 }
             } catch (error) {
@@ -850,10 +887,19 @@ const App: React.FC = () => {
                 const canUse = await checkUsageLimit(currentUser.uid);
 
                 if (!isSubscriptionValid || !canUse) {
-                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const confirmUpgrade = confirm(
+                        '⏰ 구독 기간이 만료되었습니다\n\n' +
+                        '계속 이용하시려면 플랜을 업그레이드해주세요.\n\n' +
+                        '✅ Basic: 월 ₩9,900 (무제한 검색)\n' +
+                        '✅ Pro: 월 ₩29,900 (무제한 검색 + AI 고급 기능)\n\n' +
+                        '대시보드로 이동하시겠습니까?'
+                    );
                     const updatedUser = { ...currentUser, plan: 'free' };
                     setCurrentUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    if (confirmUpgrade) {
+                        setIsUserDashboardOpen(true);
+                    }
                     return;
                 }
             } catch (error) {
