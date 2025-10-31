@@ -35,12 +35,23 @@ export const saasConfig: AppConfig = {
 
 // 현재 모드 가져오기 (환경변수 또는 localStorage)
 export const getCurrentConfig = (): AppConfig => {
-  const mode = localStorage.getItem('app_mode') || process.env.VITE_APP_MODE || 'local';
-  
+  // Vite는 import.meta.env 사용 (process.env 아님!)
+  const envMode = import.meta.env.VITE_APP_MODE;
+  const localMode = localStorage.getItem('app_mode');
+
+  // 우선순위: localStorage > 환경변수 > 기본값(local)
+  const mode = localMode || envMode || 'local';
+
+  console.log('[appConfig] mode 결정:', {
+    localStorage: localMode,
+    envVariable: envMode,
+    final: mode
+  });
+
   if (mode === 'saas') {
     return saasConfig;
   }
-  
+
   return defaultConfig;
 };
 
