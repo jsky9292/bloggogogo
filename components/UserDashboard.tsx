@@ -567,7 +567,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                       fontSize: '0.875rem',
                       textAlign: 'center',
                       fontWeight: '600'
-                    }}>₩9,900/월</td>
+                    }}>₩19,900/월</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
