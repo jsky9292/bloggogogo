@@ -243,48 +243,43 @@ export const checkUsageLimit = async (uid: string): Promise<boolean> => {
     const userData = userDoc.data() as UserProfile;
     const plan = userData.plan;
 
-    // Free 플랜이면서 7일 무료 체험 기간 중인지 체크
-    if (plan === 'free' && userData.subscriptionEnd) {
-      const now = new Date();
-      const endDate = new Date(userData.subscriptionEnd);
-
-      // 7일 무료 체험 기간 중이면 무제한 사용
-      if (now <= endDate) {
-        return true;
-      }
-
-      // 무료 체험 기간이 끝났으면 사용 불가
-      return false;
-    }
-
-    // 유료 플랜들은 기간 체크
-    if (userData.subscriptionEnd) {
-      const now = new Date();
-      const endDate = new Date(userData.subscriptionEnd);
-
-      // 구독이 만료되면 false 반환
-      if (now > endDate) {
-        // 구독 만료시 free로 변경
-        await updateUserProfile(uid, {
-          plan: 'free',
-          subscriptionEnd: undefined,
-          subscriptionDays: undefined
-        });
-        return false;
-      }
-    }
-
     // Enterprise는 항상 무제한
     if (plan === 'enterprise') {
       return true;
     }
 
-    // Basic, Pro는 구독 기간 내에서 무제한
-    if (plan === 'basic' || plan === 'pro') {
-      return true;
+    // 구독 종료일이 없으면 사용 불가 (Enterprise 제외)
+    if (!userData.subscriptionEnd) {
+      console.log(`[checkUsageLimit] ${userData.email}: 구독 종료일 없음 - 차단`);
+      return false;
     }
 
-    return false;
+    // 구독 만료 체크 (Free, Basic, Pro 모두 동일)
+    const now = new Date();
+    const endDate = new Date(userData.subscriptionEnd);
+
+    console.log(`[checkUsageLimit] ${userData.email}: 플랜=${plan}, 만료일=${endDate.toISOString()}, 현재=${now.toISOString()}`);
+
+    // 구독이 만료되었으면 차단
+    if (now > endDate) {
+      console.log(`[checkUsageLimit] ${userData.email}: 구독 만료 - 차단`);
+
+      // Free 플랜이 아니면 Free로 변경
+      if (plan !== 'free') {
+        await updateUserProfile(uid, {
+          plan: 'free',
+          subscriptionEnd: undefined,
+          subscriptionDays: undefined
+        });
+      }
+
+      return false;
+    }
+
+    // 구독 기간 내이면 사용 가능
+    console.log(`[checkUsageLimit] ${userData.email}: 구독 유효 - 허용`);
+    return true;
+
   } catch (error) {
     console.error('Usage check error:', error);
     return false;
