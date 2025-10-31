@@ -1,32 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../src/config/firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 
 interface Video {
     id: string;
+    courseId: string;
     title: string;
     url: string;
     description: string;
-    category: 'tutorial' | 'feature' | 'tip' | 'promotion';
+    requiredTier: 'free' | 'basic' | 'pro' | 'enterprise';
     order: number;
     createdAt: Date;
 }
 
+interface Course {
+    id: string;
+    title: string;
+}
+
 const AdminVideoManagement: React.FC = () => {
     const [videos, setVideos] = useState<Video[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [newVideo, setNewVideo] = useState({
+        courseId: '',
         title: '',
         url: '',
         description: '',
-        category: 'tutorial' as 'tutorial' | 'feature' | 'tip' | 'promotion',
+        requiredTier: 'free' as 'free' | 'basic' | 'pro' | 'enterprise',
         order: 0
     });
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [selectedCourse, setSelectedCourse] = useState<string>('all');
 
     useEffect(() => {
+        fetchCourses();
         fetchVideos();
     }, []);
+
+    const fetchCourses = async () => {
+        try {
+            const coursesCollection = collection(db, 'courses');
+            const snapshot = await getDocs(coursesCollection);
+            const courseList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                title: doc.data().title
+            })) as Course[];
+            setCourses(courseList);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
+    };
 
     const fetchVideos = async () => {
         try {
@@ -38,7 +62,6 @@ const AdminVideoManagement: React.FC = () => {
                 createdAt: doc.data().createdAt?.toDate() || new Date()
             })) as Video[];
 
-            // Sort by order
             videoList.sort((a, b) => a.order - b.order);
             setVideos(videoList);
         } catch (error) {
@@ -50,8 +73,8 @@ const AdminVideoManagement: React.FC = () => {
     };
 
     const handleAddVideo = async () => {
-        if (!newVideo.title || !newVideo.url) {
-            alert('제목과 URL은 필수입니다.');
+        if (!newVideo.title || !newVideo.url || !newVideo.courseId) {
+            alert('제목, URL, 코스는 필수입니다.');
             return;
         }
 
@@ -64,10 +87,11 @@ const AdminVideoManagement: React.FC = () => {
 
             alert('영상이 추가되었습니다.');
             setNewVideo({
+                courseId: '',
                 title: '',
                 url: '',
                 description: '',
-                category: 'tutorial',
+                requiredTier: 'free',
                 order: 0
             });
             fetchVideos();
@@ -105,11 +129,9 @@ const AdminVideoManagement: React.FC = () => {
     };
 
     const extractVideoId = (url: string): string | null => {
-        // YouTube
         const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/);
         if (youtubeMatch) return youtubeMatch[1];
 
-        // Vimeo
         const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
         if (vimeoMatch) return vimeoMatch[1];
 
@@ -119,19 +141,47 @@ const AdminVideoManagement: React.FC = () => {
     const getEmbedUrl = (url: string): string => {
         const videoId = extractVideoId(url);
 
-        // YouTube
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
             return `https://www.youtube.com/embed/${videoId}`;
         }
 
-        // Vimeo
         if (url.includes('vimeo.com')) {
             return `https://player.vimeo.com/video/${videoId}`;
         }
 
-        // Naver TV or other direct video links
         return url;
     };
+
+    const getTierBadge = (tier: string) => {
+        const badges = {
+            free: { text: '무료', bg: '#dcfce7', color: '#166534' },
+            basic: { text: 'BASIC', bg: '#dbeafe', color: '#1e40af' },
+            pro: { text: 'PRO', bg: '#fef3c7', color: '#92400e' },
+            enterprise: { text: 'ENTERPRISE', bg: '#fce7f3', color: '#831843' }
+        };
+        const badge = badges[tier as keyof typeof badges] || badges.free;
+        return (
+            <span style={{
+                padding: '0.25rem 0.5rem',
+                background: badge.bg,
+                color: badge.color,
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                fontWeight: '600'
+            }}>
+                {badge.text}
+            </span>
+        );
+    };
+
+    const getCourseTitle = (courseId: string) => {
+        const course = courses.find(c => c.id === courseId);
+        return course ? course.title : '알 수 없음';
+    };
+
+    const filteredVideos = selectedCourse === 'all'
+        ? videos
+        : videos.filter(v => v.courseId === selectedCourse);
 
     if (loading) {
         return <div style={{ padding: '2rem', textAlign: 'center' }}>로딩 중...</div>;
@@ -152,6 +202,42 @@ const AdminVideoManagement: React.FC = () => {
                 영상 관리
             </h2>
 
+            {/* Course Filter */}
+            <div style={{
+                background: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1.5rem'
+            }}>
+                <label style={{
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    marginRight: '0.75rem',
+                    color: '#374151'
+                }}>
+                    코스 필터:
+                </label>
+                <select
+                    value={selectedCourse}
+                    onChange={(e) => setSelectedCourse(e.target.value)}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <option value="all">전체 코스</option>
+                    {courses.map(course => (
+                        <option key={course.id} value={course.id}>
+                            {course.title}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
             {/* Add New Video Form */}
             <div style={{
                 background: '#ffffff',
@@ -169,7 +255,51 @@ const AdminVideoManagement: React.FC = () => {
                     새 영상 추가
                 </h3>
 
+                {courses.length === 0 && (
+                    <div style={{
+                        padding: '1rem',
+                        background: '#fef3c7',
+                        border: '1px solid #f59e0b',
+                        borderRadius: '6px',
+                        marginBottom: '1rem'
+                    }}>
+                        <p style={{ fontSize: '0.875rem', color: '#92400e' }}>
+                            ⚠️ 먼저 코스를 생성해주세요. 코스 관리 탭에서 추가할 수 있습니다.
+                        </p>
+                    </div>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            marginBottom: '0.5rem',
+                            color: '#374151'
+                        }}>
+                            소속 코스 *
+                        </label>
+                        <select
+                            value={newVideo.courseId}
+                            onChange={(e) => setNewVideo({ ...newVideo, courseId: e.target.value })}
+                            style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '0.875rem'
+                            }}
+                        >
+                            <option value="">코스를 선택하세요</option>
+                            {courses.map(course => (
+                                <option key={course.id} value={course.id}>
+                                    {course.title}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div>
                         <label style={{
                             display: 'block',
@@ -255,11 +385,11 @@ const AdminVideoManagement: React.FC = () => {
                                 marginBottom: '0.5rem',
                                 color: '#374151'
                             }}>
-                                카테고리
+                                필요 등급
                             </label>
                             <select
-                                value={newVideo.category}
-                                onChange={(e) => setNewVideo({ ...newVideo, category: e.target.value as any })}
+                                value={newVideo.requiredTier}
+                                onChange={(e) => setNewVideo({ ...newVideo, requiredTier: e.target.value as any })}
                                 style={{
                                     width: '100%',
                                     padding: '0.5rem',
@@ -268,10 +398,10 @@ const AdminVideoManagement: React.FC = () => {
                                     fontSize: '0.875rem'
                                 }}
                             >
-                                <option value="tutorial">사용법</option>
-                                <option value="feature">기능 설명</option>
-                                <option value="tip">팁/노하우</option>
-                                <option value="promotion">홍보</option>
+                                <option value="free">무료 (Free)</option>
+                                <option value="basic">베이직 (Basic)</option>
+                                <option value="pro">프로 (Pro)</option>
+                                <option value="enterprise">엔터프라이즈 (Enterprise)</option>
                             </select>
                         </div>
 
@@ -302,15 +432,16 @@ const AdminVideoManagement: React.FC = () => {
 
                     <button
                         onClick={handleAddVideo}
+                        disabled={courses.length === 0}
                         style={{
                             padding: '0.75rem 1.5rem',
-                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            background: courses.length === 0 ? '#9ca3af' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                             color: '#ffffff',
                             border: 'none',
                             borderRadius: '8px',
                             fontSize: '0.875rem',
                             fontWeight: '600',
-                            cursor: 'pointer',
+                            cursor: courses.length === 0 ? 'not-allowed' : 'pointer',
                             alignSelf: 'flex-start'
                         }}
                     >
@@ -332,16 +463,16 @@ const AdminVideoManagement: React.FC = () => {
                     marginBottom: '1rem',
                     color: '#374151'
                 }}>
-                    등록된 영상 ({videos.length}개)
+                    등록된 영상 ({filteredVideos.length}개)
                 </h3>
 
-                {videos.length === 0 ? (
+                {filteredVideos.length === 0 ? (
                     <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-                        등록된 영상이 없습니다.
+                        {selectedCourse === 'all' ? '등록된 영상이 없습니다.' : '선택한 코스에 영상이 없습니다.'}
                     </p>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {videos.map((video) => (
+                        {filteredVideos.map((video) => (
                             <div key={video.id} style={{
                                 border: '1px solid #e5e7eb',
                                 borderRadius: '8px',
@@ -349,7 +480,6 @@ const AdminVideoManagement: React.FC = () => {
                                 display: 'flex',
                                 gap: '1rem'
                             }}>
-                                {/* Video Preview */}
                                 <div style={{ width: '300px', flexShrink: 0 }}>
                                     <iframe
                                         src={getEmbedUrl(video.url)}
@@ -364,7 +494,6 @@ const AdminVideoManagement: React.FC = () => {
                                     />
                                 </div>
 
-                                {/* Video Info */}
                                 <div style={{ flex: 1 }}>
                                     {editingId === video.id ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -439,14 +568,24 @@ const AdminVideoManagement: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            <h4 style={{
-                                                fontSize: '1rem',
-                                                fontWeight: '600',
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                                                <h4 style={{
+                                                    fontSize: '1rem',
+                                                    fontWeight: '600',
+                                                    color: '#1f2937'
+                                                }}>
+                                                    {video.title}
+                                                </h4>
+                                                {getTierBadge(video.requiredTier)}
+                                            </div>
+                                            <p style={{
+                                                fontSize: '0.75rem',
+                                                color: '#3b82f6',
                                                 marginBottom: '0.5rem',
-                                                color: '#1f2937'
+                                                fontWeight: '500'
                                             }}>
-                                                {video.title}
-                                            </h4>
+                                                📚 {getCourseTitle(video.courseId)}
+                                            </p>
                                             <p style={{
                                                 fontSize: '0.875rem',
                                                 color: '#6b7280',
@@ -454,31 +593,12 @@ const AdminVideoManagement: React.FC = () => {
                                             }}>
                                                 {video.description}
                                             </p>
-                                            <div style={{
-                                                display: 'flex',
-                                                gap: '0.5rem',
-                                                marginBottom: '0.5rem'
+                                            <p style={{
+                                                fontSize: '0.75rem',
+                                                color: '#9ca3af'
                                             }}>
-                                                <span style={{
-                                                    padding: '0.25rem 0.5rem',
-                                                    background: '#eff6ff',
-                                                    color: '#2563eb',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: '500'
-                                                }}>
-                                                    {video.category === 'tutorial' ? '사용법' : video.category === 'feature' ? '기능설명' : video.category === 'tip' ? '팁/노하우' : '홍보'}
-                                                </span>
-                                                <span style={{
-                                                    padding: '0.25rem 0.5rem',
-                                                    background: '#f3f4f6',
-                                                    color: '#374151',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.75rem'
-                                                }}>
-                                                    순서: {video.order}
-                                                </span>
-                                            </div>
+                                                순서: {video.order}
+                                            </p>
                                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                                                 <button
                                                     onClick={() => setEditingId(video.id)}

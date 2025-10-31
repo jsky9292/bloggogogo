@@ -3,6 +3,7 @@ import { collection, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firesto
 import { db, updateUserSubscription } from '../src/config/firebase';
 import EmailComposer from './EmailComposer';
 import AdminVideoManagement from './AdminVideoManagement';
+import AdminCourseManagement from './AdminCourseManagement';
 
 interface User {
     uid: string;
@@ -32,14 +33,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
-    const [subscriptionDays, setSubscriptionDays] = useState<number>(14);
+    const [subscriptionDays, setSubscriptionDays] = useState<number>(7);
     const [selectedPlan, setSelectedPlan] = useState<string>('basic');
     const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [showEmailModal, setShowEmailModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'users' | 'videos'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'courses' | 'videos'>('users');
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -79,22 +80,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
             const usersList = usersSnapshot.docs.map(doc => {
                 const userData = doc.data();
 
-                // 이전 가입자에게 구독 정보가 없으면 14일 무료 체험 자동 설정
+                // 이전 가입자에게 구독 정보가 없으면 7일 무료 체험 자동 설정
                 if (!userData.subscriptionEnd && userData.plan === 'free') {
                     const createdAt = userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt);
                     const endDate = new Date(createdAt);
-                    endDate.setDate(endDate.getDate() + 14);
+                    endDate.setDate(endDate.getDate() + 7);
 
                     // Firebase에 업데이트
                     updateDoc(doc.ref, {
                         subscriptionStart: createdAt,
                         subscriptionEnd: endDate,
-                        subscriptionDays: 14
+                        subscriptionDays: 7
                     }).catch(err => console.error('Error updating legacy user:', err));
 
                     userData.subscriptionStart = createdAt;
                     userData.subscriptionEnd = endDate;
-                    userData.subscriptionDays = 14;
+                    userData.subscriptionDays = 7;
                 }
 
                 return {
@@ -313,6 +314,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                 }}
                             >
                                 사용자 관리
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('courses')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: activeTab === 'courses' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                                    color: '#ffffff',
+                                    border: activeTab === 'courses' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                코스 관리
                             </button>
                             <button
                                 onClick={() => setActiveTab('videos')}
@@ -738,7 +754,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                                         borderRadius: '4px'
                                     }}
                                 >
-                                    <option value={14}>14일 (무료 체험)</option>
+                                    <option value={7}>7일 (무료 체험)</option>
                                     <option value={30}>30일 (1개월)</option>
                                     <option value={90}>90일 (3개월)</option>
                                     <option value={180}>180일 (6개월)</option>
@@ -785,6 +801,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                             users={users}
                         />
                     </>
+                ) : activeTab === 'courses' ? (
+                    /* Course Management Tab */
+                    <AdminCourseManagement />
                 ) : (
                     /* Video Management Tab */
                     <AdminVideoManagement />

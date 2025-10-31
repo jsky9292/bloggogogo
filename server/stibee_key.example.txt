@@ -1,5 +1,5 @@
 STIBEE_API_KEY: b5b18aa7ef53f225652599101f2a23ddeb9d6e88d35bb74b33fe6581471d63794aad10b157c421f8f26d3b1a3fceb4b8938d61416bea7bbd2e4bc85fd581b48e
-STIBEE_LIST_ID: your_list_id_here
+1
 
 # 스티비 API 키 발급 방법:
 # 1. https://stibee.com 에 로그인
