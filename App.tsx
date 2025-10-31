@@ -33,7 +33,7 @@ import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './s
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
 import NaverKeywordAnalysis from './components/NaverKeywordAnalysis';
 import { config } from './src/config/appConfig';
-import { updateAdminAccount, saveNaverApiKeys, getNaverApiKeys } from './src/config/firebase';
+import { updateAdminAccount, saveNaverApiKeys, getNaverApiKeys, checkUsageLimit, checkSubscriptionExpiry } from './src/config/firebase';
 import type { NaverApiKeys as FirebaseNaverApiKeys } from './src/config/firebase';
 
 interface NaverApiKeys {
@@ -153,6 +153,22 @@ const App: React.FC = () => {
 
     useEffect(() => {
         console.log('currentUser changed:', currentUser);
+
+        // ✅ 로그인 시 구독 만료 자동 체크 추가
+        if (currentUser && currentUser.uid && config.mode === 'saas') {
+            checkSubscriptionExpiry(currentUser.uid).then((isValid) => {
+                if (!isValid && currentUser.plan !== 'enterprise') {
+                    console.log('구독이 만료되어 free 플랜으로 변경됨');
+                    // 사용자 정보 갱신
+                    const updatedUser = { ...currentUser, plan: 'free' as const, subscriptionEnd: undefined, subscriptionDays: undefined };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                }
+            }).catch((error) => {
+                console.error('구독 만료 체크 오류:', error);
+            });
+        }
+
         // 관리자 계정인 경우 자동으로 Enterprise 플랜으로 업데이트
         if (currentUser && currentUser.email === 'admin@keywordinsight.com') {
             updateAdminAccount(currentUser.uid, currentUser.email).then(() => {
@@ -231,6 +247,33 @@ const App: React.FC = () => {
 
     const handleSearch = async (searchKeyword: string) => {
         if (!searchKeyword.trim()) return;
+
+        // ✅ 구독 상태 및 사용량 제한 체크 (SaaS 모드에서만)
+        if (config.mode === 'saas' && currentUser) {
+            try {
+                // 1. 구독 만료 여부 확인
+                const isSubscriptionValid = await checkSubscriptionExpiry(currentUser.uid);
+
+                // 2. 사용 가능 여부 확인
+                const canUse = await checkUsageLimit(currentUser.uid);
+
+                if (!isSubscriptionValid || !canUse) {
+                    // 구독이 만료되었거나 사용 제한 초과
+                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+
+                    // 사용자 정보 갱신 (플랜이 free로 변경되었을 수 있음)
+                    const updatedUser = { ...currentUser, plan: 'free' };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+
+                    return; // 검색 중단
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.\n다시 시도해주세요.');
+                return;
+            }
+        }
 
         // Reset all states
         setInitialLoad(false);
@@ -321,6 +364,26 @@ const App: React.FC = () => {
     }
 
     const handleGenerateTopics = async (type: 'main' | 'all') => {
+        // ✅ 구독 상태 체크 추가
+        if (config.mode === 'saas' && currentUser) {
+            try {
+                const isSubscriptionValid = await checkSubscriptionExpiry(currentUser.uid);
+                const canUse = await checkUsageLimit(currentUser.uid);
+
+                if (!isSubscriptionValid || !canUse) {
+                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const updatedUser = { ...currentUser, plan: 'free' };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    return;
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.');
+                return;
+            }
+        }
+
         setTopicLoading(true);
         setTopicError(null);
         setBlogTopics(null);
@@ -363,6 +426,27 @@ const App: React.FC = () => {
         }
     ) => {
         console.log('executeGenerateBlogPost called with:', topic, options);
+
+        // ✅ 구독 상태 체크 추가
+        if (config.mode === 'saas' && currentUser) {
+            try {
+                const isSubscriptionValid = await checkSubscriptionExpiry(currentUser.uid);
+                const canUse = await checkUsageLimit(currentUser.uid);
+
+                if (!isSubscriptionValid || !canUse) {
+                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const updatedUser = { ...currentUser, plan: 'free' };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    return;
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.');
+                return;
+            }
+        }
+
         setBlogPostLoading(true);
         setBlogPostError(null);
         setBlogPost(null);
@@ -703,6 +787,26 @@ const App: React.FC = () => {
 
 
     const handleFetchRecommendations = async () => {
+        // ✅ 구독 상태 체크 추가
+        if (config.mode === 'saas' && currentUser) {
+            try {
+                const isSubscriptionValid = await checkSubscriptionExpiry(currentUser.uid);
+                const canUse = await checkUsageLimit(currentUser.uid);
+
+                if (!isSubscriptionValid || !canUse) {
+                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const updatedUser = { ...currentUser, plan: 'free' };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    return;
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.');
+                return;
+            }
+        }
+
         setRecoLoading(true);
         setRecoError(null);
         setRecommendedKeywords(null);
@@ -739,6 +843,26 @@ const App: React.FC = () => {
     };
 
     const handlePromptExecute = async (promptText: string) => {
+        // ✅ 구독 상태 체크 추가
+        if (config.mode === 'saas' && currentUser) {
+            try {
+                const isSubscriptionValid = await checkSubscriptionExpiry(currentUser.uid);
+                const canUse = await checkUsageLimit(currentUser.uid);
+
+                if (!isSubscriptionValid || !canUse) {
+                    alert('❌ 구독 기간이 만료되었습니다.\n\n대시보드에서 플랜을 업그레이드해주세요.');
+                    const updatedUser = { ...currentUser, plan: 'free' };
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    return;
+                }
+            } catch (error) {
+                console.error('구독 상태 확인 오류:', error);
+                alert('⚠️ 구독 상태를 확인하는 중 오류가 발생했습니다.');
+                return;
+            }
+        }
+
         // Clear all visible results from main features to make space for the prompt result
         setResults([]);
         setRecommendedKeywords(null);
@@ -755,13 +879,13 @@ const App: React.FC = () => {
         setSerpStrategyError(null);
         setRecoError(null);
         setSustainableTopicsError(null);
-        
+
         // Clear its own state first
         setPromptResult(null);
         setPromptResultError(null);
-    
+
         setPromptResultLoading(true);
-    
+
         try {
             const data = await executePromptAsCompetitionAnalysis(promptText);
             setPromptResult(data);
