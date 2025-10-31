@@ -256,7 +256,13 @@ export const checkUsageLimit = async (uid: string): Promise<boolean> => {
 
     // 구독 만료 체크 (Free, Basic, Pro 모두 동일)
     const now = new Date();
-    const endDate = new Date(userData.subscriptionEnd);
+
+    // Firestore Timestamp를 Date로 변환
+    const endDate = userData.subscriptionEnd instanceof Date
+      ? userData.subscriptionEnd
+      : (userData.subscriptionEnd as any).toDate
+        ? (userData.subscriptionEnd as any).toDate()
+        : new Date(userData.subscriptionEnd);
 
     console.log(`[checkUsageLimit] ${userData.email}: 플랜=${plan}, 만료일=${endDate.toISOString()}, 현재=${now.toISOString()}`);
 
@@ -377,7 +383,13 @@ export const checkSubscriptionExpiry = async (uid: string): Promise<boolean> => 
 
     // 현재 시간과 비교
     const now = new Date();
-    const endDate = new Date(userData.subscriptionEnd);
+
+    // Firestore Timestamp를 Date로 변환
+    const endDate = userData.subscriptionEnd instanceof Date
+      ? userData.subscriptionEnd
+      : (userData.subscriptionEnd as any).toDate
+        ? (userData.subscriptionEnd as any).toDate()
+        : new Date(userData.subscriptionEnd);
 
     // 만료되면 free로 변경
     if (now > endDate) {
