@@ -133,6 +133,7 @@ const App: React.FC = () => {
     const [isUserDashboardOpen, setIsUserDashboardOpen] = useState(false);
     const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
     const [isVideoTutorialsOpen, setIsVideoTutorialsOpen] = useState(false);
+    const [isMenuDropdownOpen, setIsMenuDropdownOpen] = useState(false);
     const [adminRefreshTrigger, setAdminRefreshTrigger] = useState(0);
     const [currentUser, setCurrentUser] = useState<any>(() => {
         const saved = localStorage.getItem('user');
@@ -1152,36 +1153,44 @@ const App: React.FC = () => {
                         ) : (
                             <div>
                                 {currentUser ? (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
-                                                {currentUser.name}
+                                    <div>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '1rem'
+                                        }}>
+                                            <div>
+                                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                                                    {currentUser.name}
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                                    {currentUser.plan === 'free' ? '무료' : currentUser.plan === 'pro' ? '프로' : currentUser.plan} 플랜
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                                                {currentUser.plan === 'free' ? '무료' : currentUser.plan === 'pro' ? '프로' : currentUser.plan} 플랜
-                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    localStorage.removeItem('user');
+                                                    setCurrentUser(null);
+                                                }}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    fontSize: '12px',
+                                                    background: '#f3f4f6',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    color: '#374151'
+                                                }}
+                                            >
+                                                로그아웃
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                localStorage.removeItem('user');
-                                                setCurrentUser(null);
-                                            }}
-                                            style={{
-                                                padding: '6px 12px',
-                                                fontSize: '12px',
-                                                background: '#f3f4f6',
-                                                border: 'none',
-                                                borderRadius: '6px',
-                                                cursor: 'pointer',
-                                                color: '#374151'
-                                            }}
-                                        >
-                                            로그아웃
-                                        </button>
+                                        {/* API Settings for logged-in users */}
+                                        <ApiKeySettings
+                                            onApiKeyUpdate={handleApiKeyUpdate}
+                                            onNaverApiKeyUpdate={handleSaveNaverApiKeys}
+                                        />
                                     </div>
                                 ) : (
                                     <button
@@ -1538,95 +1547,245 @@ const App: React.FC = () => {
                                 </button>
                             )}
 
-                            <button
-                                onClick={() => navigate('/courses')}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    color: '#ffffff',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
-                                }}
-                            >
-                                <span>🎓</span>
-                                <span>강의</span>
-                            </button>
+                            {/* Menu - Admin sees all buttons, Users see dropdown */}
+                            {currentUser?.role === 'admin' ? (
+                                // Admin view - show all buttons
+                                <>
+                                    <button
+                                        onClick={() => navigate('/courses')}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            color: '#ffffff',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500',
+                                            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+                                        }}
+                                    >
+                                        <span>🎓</span>
+                                        <span>강의</span>
+                                    </button>
 
-                            <button
-                                onClick={() => setIsVideoTutorialsOpen(true)}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    color: '#ffffff',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(124, 58, 237, 0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(124, 58, 237, 0.2)';
-                                }}
-                            >
-                                <span>🎬</span>
-                                <span>영상강의</span>
-                            </button>
+                                    <button
+                                        onClick={() => setIsVideoTutorialsOpen(true)}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            color: '#ffffff',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500',
+                                            boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(124, 58, 237, 0.3)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(124, 58, 237, 0.2)';
+                                        }}
+                                    >
+                                        <span>🎬</span>
+                                        <span>영상강의</span>
+                                    </button>
 
-                            <button
-                                onClick={() => setIsHelpModalOpen(true)}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    color: '#ffffff',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '500',
-                                    boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.05)';
-                                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
-                                }}
-                            >
-                                <span>📚</span>
-                                <span>기능사용법</span>
-                            </button>
+                                    <button
+                                        onClick={() => setIsHelpModalOpen(true)}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            color: '#ffffff',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500',
+                                            boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
+                                        }}
+                                    >
+                                        <span>📚</span>
+                                        <span>기능사용법</span>
+                                    </button>
+                                </>
+                            ) : (
+                                // User view - show dropdown menu
+                                <div style={{ position: 'relative' }}>
+                                    <button
+                                        onClick={() => setIsMenuDropdownOpen(!isMenuDropdownOpen)}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.3s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            color: '#ffffff',
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500',
+                                            boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(99, 102, 241, 0.3)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(99, 102, 241, 0.2)';
+                                        }}
+                                    >
+                                        <span>☰</span>
+                                        <span>메뉴</span>
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    {isMenuDropdownOpen && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                right: 0,
+                                                marginTop: '0.5rem',
+                                                background: '#ffffff',
+                                                borderRadius: '8px',
+                                                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+                                                overflow: 'hidden',
+                                                minWidth: '200px',
+                                                zIndex: 1000
+                                            }}
+                                        >
+                                            <button
+                                                onClick={() => {
+                                                    navigate('/courses');
+                                                    setIsMenuDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.75rem 1rem',
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    textAlign: 'left',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                    color: '#374151',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: '500',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = '#f3f4f6';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <span>🎓</span>
+                                                <span>강의</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setIsVideoTutorialsOpen(true);
+                                                    setIsMenuDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.75rem 1rem',
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    textAlign: 'left',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                    color: '#374151',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: '500',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = '#f3f4f6';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <span>🎬</span>
+                                                <span>영상강의</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setIsHelpModalOpen(true);
+                                                    setIsMenuDropdownOpen(false);
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.75rem 1rem',
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    textAlign: 'left',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                    color: '#374151',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: '500',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = '#f3f4f6';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <span>📚</span>
+                                                <span>기능사용법</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </header>
 
@@ -1865,6 +2024,8 @@ const App: React.FC = () => {
                         // 결제 페이지로 이동하는 로직 추가 예정
                         alert('결제 시스템 준비 중입니다.');
                     }}
+                    onApiKeyUpdate={handleApiKeyUpdate}
+                    onNaverApiKeyUpdate={handleSaveNaverApiKeys}
                 />
             )}
 

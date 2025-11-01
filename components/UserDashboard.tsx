@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile, checkUsageLimit } from '../src/config/firebase';
+import ApiKeySettings from './ApiKeySettings';
+
+interface NaverApiKeys {
+  adApiKey: string;
+  searchApiKey: string;
+  adApiSecret: string;
+  searchApiSecret: string;
+}
 
 interface UserDashboardProps {
   user: UserProfile;
   onClose: () => void;
   onUpgradePlan: () => void;
+  onApiKeyUpdate?: (apiKey: string) => void;
+  onNaverApiKeyUpdate?: (keys: NaverApiKeys) => void;
 }
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan, onApiKeyUpdate, onNaverApiKeyUpdate }) => {
   const [remainingSearches, setRemainingSearches] = useState<number>(0);
   const [hasLimit, setHasLimit] = useState<boolean>(true);
 
@@ -180,6 +190,29 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
               </div>
             </div>
           </div>
+
+          {/* API Settings Section */}
+          {onApiKeyUpdate && onNaverApiKeyUpdate && (
+            <div style={{ marginBottom: '32px' }}>
+              <h3 style={{
+                fontSize: '1.125rem',
+                fontWeight: '600',
+                marginBottom: '16px',
+                color: '#1f2937'
+              }}>API 키 설정</h3>
+              <div style={{
+                backgroundColor: '#f9fafb',
+                borderRadius: '8px',
+                padding: '24px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <ApiKeySettings
+                  onApiKeyUpdate={onApiKeyUpdate}
+                  onNaverApiKeyUpdate={onNaverApiKeyUpdate}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Subscription Section */}
           <div style={{ marginBottom: '32px' }}>
