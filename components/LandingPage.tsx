@@ -63,77 +63,54 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
   const fetchTrendingKeywords = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      console.log('[DEBUG] 실시간 검색어 API 호출 시작...', apiUrl);
-      const response = await fetch(`${apiUrl}/trending_keywords`);
+      console.log('[DEBUG] 오늘의 글감(최신 뉴스) API 호출 시작...', apiUrl);
+
+      // 최신 뉴스 API 호출
+      const response = await fetch(`${apiUrl}/latest_news`);
       const result = await response.json();
 
       console.log('[DEBUG] API 응답:', result);
-      console.log('[DEBUG] 네이버 키워드 수:', result.naver?.length);
-      console.log('[DEBUG] 구글 키워드 수:', result.google?.length);
+      console.log('[DEBUG] 뉴스 수:', result.news?.length);
 
-      if (result.success) {
-        // 네이버 검색어 설정
-        if (result.naver && result.naver.length > 0) {
-          console.log('[DEBUG] 네이버 검색어 설정:', result.naver);
-          setNaverKeywords(result.naver);
-        } else {
-          console.warn('[WARN] 네이버 검색어가 비어있음, fallback 사용');
-          setNaverKeywords([
-            { keyword: '블로그 수익화', rank: 1 },
-            { keyword: 'SEO 최적화', rank: 2 },
-            { keyword: '키워드 분석', rank: 3 },
-            { keyword: '구글 애드센스', rank: 4 },
-            { keyword: '콘텐츠 마케팅', rank: 5 }
-          ]);
-        }
-
-        // 구글 트렌드 설정
-        if (result.google && result.google.length > 0) {
-          console.log('[DEBUG] 구글 검색어 설정:', result.google);
-          setGoogleKeywords(result.google);
-        } else {
-          console.warn('[WARN] 구글 검색어가 비어있음, fallback 사용');
-          setGoogleKeywords([
-            { keyword: 'AI 글쓰기', rank: 1 },
-            { keyword: '블로그 상위노출', rank: 2 },
-            { keyword: '검색엔진 최적화', rank: 3 },
-            { keyword: '네이버 블로그', rank: 4 },
-            { keyword: '티스토리 수익', rank: 5 }
-          ]);
-        }
+      if (result.success && result.news && result.news.length > 0) {
+        console.log('[DEBUG] 최신 뉴스 설정:', result.news);
+        // 네이버 최신 뉴스를 양쪽에 표시
+        setNaverKeywords(result.news);
+        setGoogleKeywords(result.news);
       } else {
-        console.warn('실시간 검색어 API 호출 실패, 데모 데이터 사용');
-        setNaverKeywords([
-          { keyword: '블로그 수익화', rank: 1 },
-          { keyword: 'SEO 최적화', rank: 2 },
-          { keyword: '키워드 분석', rank: 3 },
-          { keyword: '구글 애드센스', rank: 4 },
-          { keyword: '콘텐츠 마케팅', rank: 5 }
-        ]);
-        setGoogleKeywords([
-          { keyword: 'AI 글쓰기', rank: 1 },
-          { keyword: '블로그 상위노출', rank: 2 },
-          { keyword: '검색엔진 최적화', rank: 3 },
-          { keyword: '네이버 블로그', rank: 4 },
-          { keyword: '티스토리 수익', rank: 5 }
-        ]);
+        console.warn('[WARN] 최신 뉴스 가져오기 실패, 실시간 검색어로 대체');
+
+        // Fallback: 실시간 검색어 사용
+        const trendingResponse = await fetch(`${apiUrl}/trending_keywords`);
+        const trendingResult = await trendingResponse.json();
+
+        if (trendingResult.success) {
+          setNaverKeywords(trendingResult.naver || []);
+          setGoogleKeywords(trendingResult.google || []);
+        } else {
+          // 최종 fallback
+          const fallbackNews = [
+            { keyword: '2025년 AI 트렌드 전망', rank: 1 },
+            { keyword: '디지털 노마드 필수 도구', rank: 2 },
+            { keyword: '블로그 수익화 최신 전략', rank: 3 },
+            { keyword: 'SEO 최적화 가이드', rank: 4 },
+            { keyword: '온라인 비즈니스 시작하기', rank: 5 }
+          ];
+          setNaverKeywords(fallbackNews);
+          setGoogleKeywords(fallbackNews);
+        }
       }
     } catch (error) {
-      console.error('실시간 검색어 조회 오류:', error);
-      setNaverKeywords([
-        { keyword: '블로그 수익화', rank: 1 },
-        { keyword: 'SEO 최적화', rank: 2 },
-        { keyword: '키워드 분석', rank: 3 },
-        { keyword: '구글 애드센스', rank: 4 },
-        { keyword: '콘텐츠 마케팅', rank: 5 }
-      ]);
-      setGoogleKeywords([
-        { keyword: 'AI 글쓰기', rank: 1 },
-        { keyword: '블로그 상위노출', rank: 2 },
-        { keyword: '검색엔진 최적화', rank: 3 },
-        { keyword: '네이버 블로그', rank: 4 },
-        { keyword: '티스토리 수익', rank: 5 }
-      ]);
+      console.error('최신 뉴스 조회 오류:', error);
+      const errorFallback = [
+        { keyword: '2025년 AI 트렌드 전망', rank: 1 },
+        { keyword: '디지털 노마드 필수 도구', rank: 2 },
+        { keyword: '블로그 수익화 최신 전략', rank: 3 },
+        { keyword: 'SEO 최적화 가이드', rank: 4 },
+        { keyword: '온라인 비즈니스 시작하기', rank: 5 }
+      ];
+      setNaverKeywords(errorFallback);
+      setGoogleKeywords(errorFallback);
     }
   };
 

@@ -383,6 +383,57 @@ def get_google_trends_keywords():
         sample_keywords = ['ChatGPT', 'AI', '인공지능', 'Python', 'React', '디지털노마드', '재택근무', '부업', '투자', '주식']
         return [{'keyword': kw, 'rank': i+1, 'source': 'google'} for i, kw in enumerate(sample_keywords)]
 
+def get_latest_news():
+    """
+    네이버 최신 뉴스 제목 가져오기 (네이버 검색 API 사용)
+    """
+    try:
+        if not search_userkey_list or len(search_userkey_list) < 2:
+            print("[WARN] 네이버 검색 API 키 없음")
+            return []
+
+        client_id = search_userkey_list[0]
+        client_secret = search_userkey_list[1]
+
+        # 최신 뉴스 검색 (정렬: 최신순)
+        encText = urllib.parse.quote("경제 OR 정책 OR IT OR 트렌드")
+        url = f"https://openapi.naver.com/v1/search/news.json?query={encText}&display=10&sort=date"
+
+        req = urllib.request.Request(url)
+        req.add_header("X-Naver-Client-Id", client_id)
+        req.add_header("X-Naver-Client-Secret", client_secret)
+
+        response = urllib.request.urlopen(req)
+        rescode = response.getcode()
+
+        if rescode == 200:
+            response_body = response.read()
+            result = json.loads(response_body.decode('utf-8'))
+
+            news_list = []
+            for idx, item in enumerate(result.get('items', [])[:10]):
+                # HTML 태그 제거
+                title = BeautifulSoup(item['title'], 'html.parser').get_text()
+                news_list.append({
+                    'keyword': title,
+                    'rank': idx + 1,
+                    'source': 'naver_news',
+                    'link': item.get('link', ''),
+                    'pubDate': item.get('pubDate', '')
+                })
+
+            print(f"[INFO] 네이버 최신 뉴스 {len(news_list)}개 수집")
+            return news_list
+        else:
+            print(f"[ERROR] 네이버 뉴스 API 오류: {rescode}")
+            return []
+
+    except Exception as e:
+        print(f"[ERROR] 네이버 뉴스 가져오기 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+
 @app.route('/trending_keywords', methods=['GET'])
 def get_trending_keywords():
     """
@@ -413,6 +464,30 @@ def get_trending_keywords():
             'error': str(e),
             'naver': [],
             'google': []
+        })
+
+@app.route('/latest_news', methods=['GET'])
+def latest_news():
+    """
+    오늘의 글감: 최신 뉴스 제목 조회
+    네이버 최신 뉴스 기사 제목 제공
+    """
+    try:
+        news_list = get_latest_news()
+
+        return jsonify({
+            'success': True,
+            'news': news_list,
+            'count': len(news_list),
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        print(f"[ERROR] 최신 뉴스 조회 실패: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'news': []
         })
 
 if __name__ == '__main__':
