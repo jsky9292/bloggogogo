@@ -761,6 +761,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                 title: '빠른 분석 속도',
                 description: '강력한 AI 엔진으로 수천 개의 키워드를 빠르게 분석합니다',
                 color: '#8b5cf6'
+              },
+              {
+                icon: '📍',
+                title: '블로그 랭킹 추적',
+                description: '네이버 블로그 순위를 실시간으로 추적하고 변화를 모니터링합니다 (스마트블록, 블로그 영역, 블로그 탭)',
+                color: '#ef4444',
+                badge: 'NEW'
               }
             ].map((feature, index) => (
               <div
@@ -801,9 +808,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onRegister }) => {
                   fontSize: '1.125rem',
                   fontWeight: '600',
                   marginBottom: '0.5rem',
-                  color: '#191f28'
+                  color: '#191f28',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
                 }}>
                   {feature.title}
+                  {feature.badge && (
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      textTransform: 'uppercase'
+                    }}>
+                      {feature.badge}
+                    </span>
+                  )}
                 </h3>
                 <p style={{
                   color: '#6b7280',

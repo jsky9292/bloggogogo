@@ -8,7 +8,8 @@ interface UserDashboardProps {
   onUpgradePlan: () => void;
 }
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan, onApiKeyUpdate, onNaverApiKeyUpdate }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan }) => {
+  const [selectedTab, setSelectedTab] = useState<'info' | 'ranking'>('info');
   const [remainingSearches, setRemainingSearches] = useState<number>(0);
   const [hasLimit, setHasLimit] = useState<boolean>(true);
   const [dailyUsage, setDailyUsage] = useState<{ keywordSearches: number; blogGenerations: number; limit: typeof PLAN_DAILY_LIMITS[keyof typeof PLAN_DAILY_LIMITS] } | null>(null);
@@ -119,18 +120,88 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
         </div>
 
         <div style={{
-          padding: '32px',
-          overflowY: 'auto',
-          maxHeight: 'calc(90vh - 100px)'
+          display: 'flex',
+          height: 'calc(90vh - 100px)'
         }}>
-          {/* User Info Section */}
-          <div style={{ marginBottom: '32px' }}>
-            <h3 style={{
-              fontSize: '1.125rem',
-              fontWeight: '600',
-              marginBottom: '16px',
-              color: '#1f2937'
-            }}>내 정보</h3>
+          {/* Left Sidebar - Tabs */}
+          <div style={{
+            width: '200px',
+            borderRight: '1px solid #e5e7eb',
+            padding: '16px 0',
+            overflowY: 'auto'
+          }}>
+            <button
+              onClick={() => setSelectedTab('info')}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                textAlign: 'left',
+                border: 'none',
+                background: selectedTab === 'info' ? '#eff6ff' : 'transparent',
+                color: selectedTab === 'info' ? '#2563eb' : '#6b7280',
+                fontWeight: selectedTab === 'info' ? '600' : '400',
+                cursor: 'pointer',
+                borderLeft: selectedTab === 'info' ? '3px solid #2563eb' : '3px solid transparent',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedTab !== 'info') {
+                  e.currentTarget.style.background = '#f9fafb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedTab !== 'info') {
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              📊 내 정보
+            </button>
+            <button
+              onClick={() => setSelectedTab('ranking')}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                textAlign: 'left',
+                border: 'none',
+                background: selectedTab === 'ranking' ? '#eff6ff' : 'transparent',
+                color: selectedTab === 'ranking' ? '#2563eb' : '#6b7280',
+                fontWeight: selectedTab === 'ranking' ? '600' : '400',
+                cursor: 'pointer',
+                borderLeft: selectedTab === 'ranking' ? '3px solid #2563eb' : '3px solid transparent',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedTab !== 'ranking') {
+                  e.currentTarget.style.background = '#f9fafb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedTab !== 'ranking') {
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              📍 블로그 랭킹 추적
+            </button>
+          </div>
+
+          {/* Right Content Area */}
+          <div style={{
+            flex: 1,
+            padding: '32px',
+            overflowY: 'auto'
+          }}>
+            {selectedTab === 'info' && (
+              <>
+                {/* User Info Section */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{
+                    fontSize: '1.125rem',
+                    fontWeight: '600',
+                    marginBottom: '16px',
+                    color: '#1f2937'
+                  }}>내 정보</h3>
             <div style={{
               backgroundColor: '#f9fafb',
               borderRadius: '8px',
@@ -541,7 +612,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                       textAlign: 'center',
                       fontWeight: '600',
                       color: '#2563eb'
-                    }}>₩29,900/월</td>
+                    }}>₩39,900/월</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
@@ -738,7 +809,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
                       textAlign: 'center',
                       fontWeight: '600',
                       color: '#2563eb'
-                    }}>₩29,900/월</td>
+                    }}>₩39,900/월</td>
                     <td style={{
                       padding: '16px 24px',
                       fontSize: '0.875rem',
@@ -755,7 +826,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
           <div style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: '16px'
+            gap: '16px',
+            marginTop: '32px'
           }}>
             <button
               onClick={onClose}
@@ -773,6 +845,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradeP
             >
               닫기
             </button>
+          </div>
+              </>
+            )}
+
+            {/* Ranking Tracker Tab */}
+            {selectedTab === 'ranking' && (
+              <RankingTracker userId={user.uid} />
+            )}
           </div>
         </div>
       </div>

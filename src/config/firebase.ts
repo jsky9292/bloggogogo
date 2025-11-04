@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc, Timestamp, orderBy, limit as firestoreLimit } from 'firebase/firestore';
+import type { BlogRankingTracker, RankingHistory } from '../../types';
 
 // Firebase 설정 - 환경 변수에서만 가져오기 (보안)
 const firebaseConfig = {
@@ -106,7 +107,7 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
       let profile = userDoc.data() as UserProfile;
 
       // 관리자 계정이면 강제로 Enterprise 플랜으로 설정
-      if (email === 'admin@keywordinsight.com') {
+      if (email === 'admin@keywordinsight.com' || email === 'jsky9292@gmail.com') {
         profile = {
           ...profile,
           plan: 'enterprise',
@@ -135,7 +136,7 @@ export const loginUser = async (email: string, password: string): Promise<UserPr
     } else {
       // 프로필이 없으면 생성 (기존 사용자의 경우)
       // 관리자 계정 체크
-      const isAdmin = email === 'admin@keywordinsight.com';
+      const isAdmin = email === 'admin@keywordinsight.com' || email === 'jsky9292@gmail.com';
 
       const userProfile: UserProfile = {
         uid: user.uid,
@@ -256,12 +257,13 @@ export const checkUsageLimit = async (uid: string): Promise<boolean> => {
     const userData = userDoc.data() as UserProfile;
     const plan = userData.plan;
 
-    // Enterprise는 항상 무제한
-    if (plan === 'enterprise') {
+    // ✅ Enterprise와 Admin은 항상 무제한 (subscriptionEnd 체크 제외)
+    if (plan === 'enterprise' || userData.role === 'admin') {
+      console.log(`[checkUsageLimit] ${userData.email}: Enterprise/Admin - 무제한 허용`);
       return true;
     }
 
-    // 구독 종료일이 없으면 사용 불가 (Enterprise 제외)
+    // 구독 종료일이 없으면 사용 불가 (Enterprise/Admin 제외)
     if (!userData.subscriptionEnd) {
       console.log(`[checkUsageLimit] ${userData.email}: 구독 종료일 없음 - 차단`);
       return false;
@@ -342,7 +344,7 @@ export const isAdmin = async (uid: string): Promise<boolean> => {
 // 관리자 계정 업데이트 함수 (관리자 계정이 FREE로 표시되는 문제 수정)
 export const updateAdminAccount = async (uid: string, email: string): Promise<void> => {
   try {
-    if (email === 'admin@keywordinsight.com') {
+    if (email === 'admin@keywordinsight.com' || email === 'jsky9292@gmail.com') {
       await updateUserProfile(uid, {
         name: '관리자',
         plan: 'enterprise',
@@ -388,8 +390,11 @@ export const checkSubscriptionExpiry = async (uid: string): Promise<boolean> => 
 
     const userData = userDoc.data() as UserProfile;
 
-    // Enterprise는 무제한
-    if (userData.plan === 'enterprise') return true;
+    // ✅ Enterprise와 Admin은 무제한 (구독 만료 체크 제외)
+    if (userData.plan === 'enterprise' || userData.role === 'admin') {
+      console.log(`[checkSubscriptionExpiry] ${userData.email}: Enterprise/Admin - 무제한`);
+      return true;
+    }
 
     // 구독 종료일이 설정되어 있지 않으면 false
     if (!userData.subscriptionEnd) return false;
@@ -477,13 +482,14 @@ export const checkDailyLimit = async (uid: string, type: 'keywordSearches' | 'bl
     const limits = PLAN_DAILY_LIMITS[plan];
     const limit = limits[type];
 
-    // -1은 무제한
-    if (limit === -1) {
+    // ✅ Enterprise와 Admin은 무제한
+    if (plan === 'enterprise' || userData.role === 'admin') {
+      console.log(`[checkDailyLimit] ${userData.email}: Enterprise/Admin - 무제한`);
       return { canUse: true, current: 0, limit: -1 };
     }
 
-    // Enterprise는 무제한
-    if (plan === 'enterprise') {
+    // -1은 무제한
+    if (limit === -1) {
       return { canUse: true, current: 0, limit: -1 };
     }
 
@@ -581,5 +587,243 @@ export const getDailyUsage = async (uid: string): Promise<{ keywordSearches: num
   } catch (error) {
     console.error('Get daily usage error:', error);
     return null;
+  }
+};
+
+// ==================== 블로그 랭킹 추적 관련 함수 ====================
+
+/**
+ * 블로그 랭킹 추적 항목 추가
+ */
+export const createRankingTracker = async (tracker: Omit<BlogRankingTracker, 'id'>): Promise<string> => {
+  try {
+    const trackerData = {
+      ...tracker,
+      createdAt: Timestamp.fromDate(tracker.createdAt),
+      lastChecked: tracker.lastChecked ? Timestamp.fromDate(tracker.lastChecked) : null,
+      rankHistory: tracker.rankHistory.map(h => ({
+        ...h,
+        checkedAt: Timestamp.fromDate(h.checkedAt)
+      }))
+    };
+
+    const docRef = await addDoc(collection(db, 'rankingTrackers'), trackerData);
+    console.log('✅ 랭킹 추적 항목 생성:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('❌ 랭킹 추적 항목 생성 실패:', error);
+    throw error;
+  }
+};
+
+/**
+ * 사용자의 모든 랭킹 추적 항목 조회
+ */
+export const getUserRankingTrackers = async (userId: string): Promise<BlogRankingTracker[]> => {
+  try {
+    // 인덱스 없이 작동하도록 orderBy 제거
+    const q = query(
+      collection(db, 'rankingTrackers'),
+      where('userId', '==', userId),
+      where('isActive', '==', true)
+    );
+
+    const snapshot = await getDocs(q);
+    const trackers: BlogRankingTracker[] = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      trackers.push({
+        id: doc.id,
+        userId: data.userId,
+        blogUrl: data.blogUrl,
+        blogTitle: data.blogTitle,
+        targetKeyword: data.targetKeyword,
+        currentSmartblockRank: data.currentSmartblockRank,
+        currentMainBlogRank: data.currentMainBlogRank,
+        currentBlogTabRank: data.currentBlogTabRank,
+        previousSmartblockRank: data.previousSmartblockRank,
+        previousMainBlogRank: data.previousMainBlogRank,
+        previousBlogTabRank: data.previousBlogTabRank,
+        rankHistory: data.rankHistory.map((h: any) => ({
+          date: h.date,
+          smartblockRank: h.smartblockRank,
+          mainBlogRank: h.mainBlogRank,
+          blogTabRank: h.blogTabRank,
+          checkedAt: h.checkedAt.toDate()
+        })),
+        createdAt: data.createdAt.toDate(),
+        lastChecked: data.lastChecked ? data.lastChecked.toDate() : null,
+        isActive: data.isActive
+      });
+    });
+
+    // 클라이언트 측에서 정렬 (최신순)
+    trackers.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    return trackers;
+  } catch (error) {
+    console.error('❌ 랭킹 추적 항목 조회 실패:', error);
+    throw error;
+  }
+};
+
+/**
+ * 특정 랭킹 추적 항목 조회
+ */
+export const getRankingTracker = async (trackerId: string): Promise<BlogRankingTracker | null> => {
+  try {
+    const docRef = doc(db, 'rankingTrackers', trackerId);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      return null;
+    }
+
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      userId: data.userId,
+      blogUrl: data.blogUrl,
+      blogTitle: data.blogTitle,
+      targetKeyword: data.targetKeyword,
+      currentSmartblockRank: data.currentSmartblockRank,
+      currentMainBlogRank: data.currentMainBlogRank,
+      currentBlogTabRank: data.currentBlogTabRank,
+      previousSmartblockRank: data.previousSmartblockRank,
+      previousMainBlogRank: data.previousMainBlogRank,
+      previousBlogTabRank: data.previousBlogTabRank,
+      rankHistory: data.rankHistory.map((h: any) => ({
+        date: h.date,
+        smartblockRank: h.smartblockRank,
+        mainBlogRank: h.mainBlogRank,
+        blogTabRank: h.blogTabRank,
+        checkedAt: h.checkedAt.toDate()
+      })),
+      createdAt: data.createdAt.toDate(),
+      lastChecked: data.lastChecked ? data.lastChecked.toDate() : null,
+      isActive: data.isActive
+    };
+  } catch (error) {
+    console.error('❌ 랭킹 추적 항목 조회 실패:', error);
+    throw error;
+  }
+};
+
+/**
+ * 랭킹 추적 항목 업데이트
+ */
+export const updateRankingTracker = async (
+  trackerId: string,
+  updates: Partial<BlogRankingTracker>
+): Promise<void> => {
+  try {
+    const docRef = doc(db, 'rankingTrackers', trackerId);
+
+    const updateData: any = { ...updates };
+
+    if (updates.lastChecked) {
+      updateData.lastChecked = Timestamp.fromDate(updates.lastChecked);
+    }
+
+    if (updates.rankHistory) {
+      updateData.rankHistory = updates.rankHistory.map(h => ({
+        ...h,
+        checkedAt: Timestamp.fromDate(h.checkedAt)
+      }));
+    }
+
+    if (updates.createdAt) {
+      updateData.createdAt = Timestamp.fromDate(updates.createdAt);
+    }
+
+    await updateDoc(docRef, updateData);
+    console.log('✅ 랭킹 추적 항목 업데이트:', trackerId);
+  } catch (error) {
+    console.error('❌ 랭킹 추적 항목 업데이트 실패:', error);
+    throw error;
+  }
+};
+
+/**
+ * 랭킹 추적 항목 삭제 (soft delete)
+ */
+export const deleteRankingTracker = async (trackerId: string): Promise<void> => {
+  try {
+    const docRef = doc(db, 'rankingTrackers', trackerId);
+    await updateDoc(docRef, { isActive: false });
+    console.log('✅ 랭킹 추적 항목 삭제:', trackerId);
+  } catch (error) {
+    console.error('❌ 랭킹 추적 항목 삭제 실패:', error);
+    throw error;
+  }
+};
+
+/**
+ * 플랜별 랭킹 추적 가능 개수 제한
+ */
+export const RANKING_TRACKER_LIMITS = {
+  free: 3,
+  basic: 10,
+  pro: 50,
+  enterprise: -1 // unlimited
+};
+
+/**
+ * 사용자 프로필 가져오기
+ */
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      return null;
+    }
+    return { uid: userId, ...userDoc.data() } as UserProfile;
+  } catch (error) {
+    console.error('❌ 사용자 프로필 가져오기 실패:', error);
+    return null;
+  }
+};
+
+/**
+ * 사용자가 추가 가능한 랭킹 추적 개수 확인
+ */
+export const canAddRankingTracker = async (userId: string): Promise<{
+  canAdd: boolean;
+  current: number;
+  limit: number;
+  plan: string;
+}> => {
+  try {
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+      return { canAdd: false, current: 0, limit: 0, plan: 'free' };
+    }
+
+    const trackers = await getUserRankingTrackers(userId);
+
+    // plan이 없거나 잘못된 값이면 기본값 사용
+    const userPlan = userProfile.plan || 'free';
+    const limit = RANKING_TRACKER_LIMITS[userPlan] !== undefined
+      ? RANKING_TRACKER_LIMITS[userPlan]
+      : RANKING_TRACKER_LIMITS.free;
+
+    console.log('🔍 랭킹 추적 한도 확인:', {
+      userId,
+      userPlan,
+      limit,
+      current: trackers.length,
+      canAdd: limit === -1 || trackers.length < limit
+    });
+
+    return {
+      canAdd: limit === -1 || trackers.length < limit,
+      current: trackers.length,
+      limit,
+      plan: userPlan
+    };
+  } catch (error) {
+    console.error('❌ 랭킹 추적 가능 여부 확인 실패:', error);
+    throw error;
   }
 };

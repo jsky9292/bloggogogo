@@ -28,6 +28,9 @@ import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import BlogWritingModal from './components/BlogWritingModal';
 import VideoTutorials from './components/VideoTutorials';
+import Footer from './components/Footer';
+import KakaoInquiryButton from './components/KakaoInquiryButton';
+import RankingTracker from './components/RankingTracker';
 import { generateTopicsFromMainKeyword, generateTopicsFromAllKeywords, generateBlogStrategy, fetchRecommendedKeywords, generateSustainableTopics, generateSerpStrategy, executePromptAsCompetitionAnalysis, generateBlogPost, generateTrendBlogPost } from './services/keywordService';
 import { searchNaverKeywords, analyzeNaverCompetition, downloadExcel } from './services/naverKeywordService';
 import type { SearchSource, Feature, KeywordData, BlogPostData, KeywordMetrics, GeneratedTopic, BlogStrategyReportData, RecommendedKeyword, SustainableTopicCategory, GoogleSerpData, SerpStrategyReportData, PaaItem, NaverKeywordData } from './types';
@@ -112,6 +115,12 @@ const App: React.FC = () => {
     // 모바일 감지
     const [isMobile, setIsMobile] = useState<boolean>(false);
 
+    // 실시간 트렌드 도구 드롭다운 상태
+    const [showRealtimeTrends, setShowRealtimeTrends] = useState<boolean>(false);
+
+    // 블로그 랭킹 추적 모달 상태
+    const [isRankingTrackerOpen, setIsRankingTrackerOpen] = useState<boolean>(false);
+
     useEffect(() => {
         const checkMobile = () => {
             const userAgent = navigator.userAgent || navigator.vendor;
@@ -171,7 +180,7 @@ const App: React.FC = () => {
         }
 
         // 관리자 계정인 경우 자동으로 Enterprise 플랜으로 업데이트
-        if (currentUser && currentUser.email === 'admin@keywordinsight.com') {
+        if (currentUser && (currentUser.email === 'admin@keywordinsight.com' || currentUser.email === 'jsky9292@gmail.com')) {
             updateAdminAccount(currentUser.uid, currentUser.email).then(() => {
                 // 업데이트 후 현재 사용자 정보 갱신
                 setCurrentUser({
@@ -1395,6 +1404,59 @@ const App: React.FC = () => {
                             />
                         </div>
 
+                        {/* Blog Ranking Tracker Button */}
+                        <div style={{
+                            background: '#ffffff',
+                            borderRadius: '12px',
+                            padding: '1rem',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            <button
+                                onClick={() => {
+                                    if (!currentUser) {
+                                        setShowAuth(true);
+                                        return;
+                                    }
+                                    setIsRankingTrackerOpen(true);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    background: 'linear-gradient(to right, #03C75A, #00B050)',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: '#ffffff',
+                                    fontWeight: '600',
+                                    fontSize: '0.9375rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 2px 4px rgba(3, 199, 90, 0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(3, 199, 90, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(3, 199, 90, 0.2)';
+                                }}
+                            >
+                                <span>📍</span>
+                                <span>블로그 랭킹 추적</span>
+                                <span style={{
+                                    fontSize: '0.65rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(255, 255, 255, 0.3)',
+                                    fontWeight: '700'
+                                }}>NEW</span>
+                            </button>
+                        </div>
+
                         {/* Search Engine Selector (conditional) */}
                         {feature === 'keywords' && (
                             <div style={{
@@ -1439,16 +1501,63 @@ const App: React.FC = () => {
                             />
                         </div>
 
-                        {/* Realtime Keywords Sidebar */}
+                        {/* Realtime Keywords Dropdown */}
                         <div style={{
                             background: '#ffffff',
                             borderRadius: '12px',
-                            padding: '1rem',
                             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                            flex: 1,
-                            minHeight: '200px'
+                            flex: 1
                         }}>
-                            <RealtimeKeywordsSidebar onPromptExecute={handlePromptExecute} />
+                            <button
+                                onClick={() => setShowRealtimeTrends(!showRealtimeTrends)}
+                                style={{
+                                    width: '100%',
+                                    padding: '1rem',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    background: 'linear-gradient(to right, #3b82f6, #2563eb)',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    color: '#ffffff',
+                                    fontWeight: '600',
+                                    fontSize: '1rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            >
+                                <span>🔥 실시간 트렌드 도구</span>
+                                <svg
+                                    style={{
+                                        width: '20px',
+                                        height: '20px',
+                                        transform: showRealtimeTrends ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s'
+                                    }}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            {showRealtimeTrends && (
+                                <div style={{
+                                    padding: '1rem',
+                                    borderTop: '1px solid #e5e7eb',
+                                    animation: 'slideDown 0.2s ease-out'
+                                }}>
+                                    <RealtimeKeywordsSidebar onPromptExecute={handlePromptExecute} />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -2114,6 +2223,83 @@ const App: React.FC = () => {
                 />
             )}
 
+            {/* 블로그 랭킹 추적 모달 */}
+            {currentUser && isRankingTrackerOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    zIndex: 50
+                }}>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        width: '100%',
+                        maxWidth: '1024px',
+                        maxHeight: '90vh',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            background: 'linear-gradient(to right, #03C75A, #00B050)',
+                            padding: '24px 32px',
+                            color: '#ffffff'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <h2 style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>📍</span>
+                                    <span>블로그 랭킹 추적</span>
+                                </h2>
+                                <button
+                                    onClick={() => setIsRankingTrackerOpen(false)}
+                                    style={{
+                                        color: 'rgba(255, 255, 255, 0.8)',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'}
+                                >
+                                    <svg style={{ width: '24px', height: '24px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{
+                            padding: '32px',
+                            overflowY: 'auto',
+                            maxHeight: 'calc(90vh - 100px)'
+                        }}>
+                            <RankingTracker userId={currentUser.uid} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 인증 모달 */}
             {isAuthModalOpen && (
                 <AuthModal
@@ -2231,6 +2417,12 @@ const App: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Footer - visible on all pages */}
+            <Footer />
+
+            {/* Floating KakaoTalk Inquiry Button */}
+            <KakaoInquiryButton />
         </div>
     );
 };
