@@ -484,7 +484,7 @@ def latest_news():
 @app.route('/check_blog_ranking', methods=['POST'])
 def check_blog_ranking():
     """
-    블로그 순위 추적 API (모바일 버전 크롤링 - JavaScript 불필요)
+    블로그 순위 추적 API (네이버 검색 API 사용)
     """
     try:
         data = request.get_json()
@@ -505,77 +505,58 @@ def check_blog_ranking():
 
         normalized_target = normalize_url(target_url)
 
-        # 모바일 User-Agent 사용 (JavaScript 렌더링 없이 전체 HTML 제공)
+        # 네이버 검색 API 헤더
+        client_id = search_userkey_list[0]
+        client_secret = search_userkey_list[1]
+
         headers = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive'
+            'X-Naver-Client-Id': client_id,
+            'X-Naver-Client-Secret': client_secret
         }
 
-        import re
+        # 블로그 탭에서 최대 100개 검색 (display=100)
+        blog_tab_url = f"https://openapi.naver.com/v1/search/blog.json?query={urllib.parse.quote(keyword)}&display=100&sort=sim"
+        print(f"[INFO] 네이버 블로그 검색 API 호출")
 
-        # 1. 통합검색 (모바일)
-        main_search_url = f"https://m.search.naver.com/search.naver?query={urllib.parse.quote(keyword)}"
-        print(f"[INFO] 통합검색 접속 (모바일): {main_search_url}")
+        response = requests.get(blog_tab_url, headers=headers, timeout=10)
+        result = response.json()
 
-        response = requests.get(main_search_url, headers=headers, timeout=10)
-        main_html = response.text
+        if 'items' not in result:
+            print(f"[ERROR] API 응답 오류: {result}")
+            return jsonify({
+                'success': False,
+                'error': 'API 응답 오류'
+            }), 500
 
-        # 블로그 링크 추출
-        blog_pattern = r'https?://blog\.naver\.com/[^"\'<>\s]+'
-        main_matches = re.findall(blog_pattern, main_html)
-        main_links = []
-        seen = set()
-        for link in main_matches:
-            clean_link = link.split('?')[0]
-            # PostView, PostList 또는 5개 이상 경로 세그먼트
-            if clean_link not in seen and ('/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5):
-                seen.add(clean_link)
-                main_links.append(clean_link)
-
-        print(f"[INFO] 통합검색: {len(main_links)}개 블로그 포스트 링크")
+        items = result['items']
+        print(f"[INFO] 총 {len(items)}개 블로그 검색 결과")
 
         # 순위 찾기
         smartblock_rank = None
         main_blog_rank = None
-
-        for i, link in enumerate(main_links[:30]):
-            normalized_link = normalize_url(link)
-            if normalized_target in normalized_link or normalized_link in normalized_target:
-                if i < 10:
-                    smartblock_rank = i + 1
-                    print(f"[INFO] 스마트블록 {smartblock_rank}위 발견")
-                else:
-                    main_blog_rank = i - 9
-                    print(f"[INFO] 블로그 영역 {main_blog_rank}위 발견")
-                break
-
-        # 2. 블로그 탭 (모바일)
-        blog_tab_url = f"https://m.search.naver.com/search.naver?where=post&query={urllib.parse.quote(keyword)}"
-        print(f"[INFO] 블로그 탭 접속 (모바일): {blog_tab_url}")
-
-        response = requests.get(blog_tab_url, headers=headers, timeout=10)
-        blog_html = response.text
-
-        blog_matches = re.findall(blog_pattern, blog_html)
-        blog_links = []
-        seen = set()
-        for link in blog_matches:
-            clean_link = link.split('?')[0]
-            if clean_link not in seen and ('/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5):
-                seen.add(clean_link)
-                blog_links.append(clean_link)
-
-        print(f"[INFO] 블로그 탭: {len(blog_links)}개 블로그 포스트 링크")
-
         blog_tab_rank = None
-        for i, link in enumerate(blog_links[:100]):
+
+        for i, item in enumerate(items):
+            # link 필드에서 블로그 URL 추출
+            link = item.get('link', '')
             normalized_link = normalize_url(link)
+
             if normalized_target in normalized_link or normalized_link in normalized_target:
-                blog_tab_rank = i + 1
+                rank = i + 1
+
+                # 상위 10개는 스마트블록
+                if rank <= 10:
+                    smartblock_rank = rank
+                    print(f"[INFO] 스마트블록 {smartblock_rank}위 발견")
+                # 11-30위는 블로그 영역
+                elif rank <= 30:
+                    main_blog_rank = rank - 10
+                    print(f"[INFO] 블로그 영역 {main_blog_rank}위 발견")
+
+                # 블로그 탭 순위
+                blog_tab_rank = rank
                 print(f"[INFO] 블로그 탭 {blog_tab_rank}위 발견")
+                print(f"[INFO] 매칭된 링크: {link}")
                 break
 
         return jsonify({
