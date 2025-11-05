@@ -493,8 +493,9 @@ def latest_news():
 @app.route('/check_blog_ranking', methods=['POST'])
 def check_blog_ranking():
     """
-    블로그 순위 추적 API (서버 사이드 크롤링)
+    블로그 순위 추적 API (Selenium 사용, JavaScript 렌더링 후 크롤링)
     """
+    driver = None
     try:
         data = request.get_json()
         keyword = data.get('keyword')
@@ -514,20 +515,38 @@ def check_blog_ranking():
 
         normalized_target = normalize_url(target_url)
 
+        # Selenium 드라이버 설정
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver.set_page_load_timeout(30)
+
         # 1. 통합검색
         main_search_url = f"https://search.naver.com/search.naver?query={urllib.parse.quote(keyword)}"
-        main_response = requests.get(main_search_url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        main_html = main_response.text
+        print(f"[INFO] 통합검색 접속: {main_search_url}")
 
-        # 블로그 링크 추출 (정규식)
+        driver.get(main_search_url)
+        time.sleep(2)  # JavaScript 렌더링 대기
+
+        # 블로그 링크 추출
         import re
+        main_html = driver.page_source
         blog_pattern = r'https?://blog\.naver\.com/[^"\'<>\s]+'
         main_matches = re.findall(blog_pattern, main_html)
-        main_links = list(set([link.split('?')[0] for link in main_matches]))
+        main_links = []
+        seen = set()
+        for link in main_matches:
+            clean_link = link.split('?')[0]
+            if clean_link not in seen and '/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5:
+                seen.add(clean_link)
+                main_links.append(clean_link)
 
-        print(f"[INFO] 통합검색: {len(main_links)}개 링크")
+        print(f"[INFO] 통합검색: {len(main_links)}개 블로그 포스트 링크")
 
         # 순위 찾기
         smartblock_rank = None
@@ -538,28 +557,40 @@ def check_blog_ranking():
             if normalized_target in normalized_link or normalized_link in normalized_target:
                 if i < 10:
                     smartblock_rank = i + 1
+                    print(f"[INFO] 스마트블록 {smartblock_rank}위 발견")
                 else:
                     main_blog_rank = i - 9
+                    print(f"[INFO] 블로그 영역 {main_blog_rank}위 발견")
                 break
 
         # 2. 블로그 탭
         blog_tab_url = f"https://search.naver.com/search.naver?where=post&query={urllib.parse.quote(keyword)}"
-        blog_response = requests.get(blog_tab_url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        blog_html = blog_response.text
+        print(f"[INFO] 블로그 탭 접속: {blog_tab_url}")
 
+        driver.get(blog_tab_url)
+        time.sleep(2)
+
+        blog_html = driver.page_source
         blog_matches = re.findall(blog_pattern, blog_html)
-        blog_links = list(set([link.split('?')[0] for link in blog_matches]))
+        blog_links = []
+        seen = set()
+        for link in blog_matches:
+            clean_link = link.split('?')[0]
+            if clean_link not in seen and ('/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5):
+                seen.add(clean_link)
+                blog_links.append(clean_link)
 
-        print(f"[INFO] 블로그 탭: {len(blog_links)}개 링크")
+        print(f"[INFO] 블로그 탭: {len(blog_links)}개 블로그 포스트 링크")
 
         blog_tab_rank = None
         for i, link in enumerate(blog_links[:100]):
             normalized_link = normalize_url(link)
             if normalized_target in normalized_link or normalized_link in normalized_target:
                 blog_tab_rank = i + 1
+                print(f"[INFO] 블로그 탭 {blog_tab_rank}위 발견")
                 break
+
+        driver.quit()
 
         return jsonify({
             'success': True,
@@ -585,6 +616,8 @@ def check_blog_ranking():
         })
 
     except Exception as e:
+        if driver:
+            driver.quit()
         print(f"[ERROR] 순위 확인 실패: {str(e)}")
         import traceback
         traceback.print_exc()
