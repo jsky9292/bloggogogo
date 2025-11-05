@@ -362,7 +362,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate, onNaver
                                     <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
                                         <span>네이버 광고 API</span>
                                         <a
-                                            href="https://naver.worksmobile.com/"
+                                            href="https://searchad.naver.com/"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-xs text-green-700 hover:text-green-800 underline"
