@@ -11,15 +11,6 @@ import base64
 import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver import ActionChains
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import pyperclip
 import os
 import threading
 
@@ -493,9 +484,8 @@ def latest_news():
 @app.route('/check_blog_ranking', methods=['POST'])
 def check_blog_ranking():
     """
-    블로그 순위 추적 API (Selenium 사용, JavaScript 렌더링 후 크롤링)
+    블로그 순위 추적 API (모바일 버전 크롤링 - JavaScript 불필요)
     """
-    driver = None
     try:
         data = request.get_json()
         keyword = data.get('keyword')
@@ -515,34 +505,33 @@ def check_blog_ranking():
 
         normalized_target = normalize_url(target_url)
 
-        # Selenium 드라이버 설정
-        options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+        # 모바일 User-Agent 사용 (JavaScript 렌더링 없이 전체 HTML 제공)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive'
+        }
 
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.set_page_load_timeout(30)
+        import re
 
-        # 1. 통합검색
-        main_search_url = f"https://search.naver.com/search.naver?query={urllib.parse.quote(keyword)}"
-        print(f"[INFO] 통합검색 접속: {main_search_url}")
+        # 1. 통합검색 (모바일)
+        main_search_url = f"https://m.search.naver.com/search.naver?query={urllib.parse.quote(keyword)}"
+        print(f"[INFO] 통합검색 접속 (모바일): {main_search_url}")
 
-        driver.get(main_search_url)
-        time.sleep(2)  # JavaScript 렌더링 대기
+        response = requests.get(main_search_url, headers=headers, timeout=10)
+        main_html = response.text
 
         # 블로그 링크 추출
-        import re
-        main_html = driver.page_source
         blog_pattern = r'https?://blog\.naver\.com/[^"\'<>\s]+'
         main_matches = re.findall(blog_pattern, main_html)
         main_links = []
         seen = set()
         for link in main_matches:
             clean_link = link.split('?')[0]
-            if clean_link not in seen and '/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5:
+            # PostView, PostList 또는 5개 이상 경로 세그먼트
+            if clean_link not in seen and ('/PostView.naver' in link or '/PostList.naver' in link or len(clean_link.split('/')) >= 5):
                 seen.add(clean_link)
                 main_links.append(clean_link)
 
@@ -563,14 +552,13 @@ def check_blog_ranking():
                     print(f"[INFO] 블로그 영역 {main_blog_rank}위 발견")
                 break
 
-        # 2. 블로그 탭
-        blog_tab_url = f"https://search.naver.com/search.naver?where=post&query={urllib.parse.quote(keyword)}"
-        print(f"[INFO] 블로그 탭 접속: {blog_tab_url}")
+        # 2. 블로그 탭 (모바일)
+        blog_tab_url = f"https://m.search.naver.com/search.naver?where=post&query={urllib.parse.quote(keyword)}"
+        print(f"[INFO] 블로그 탭 접속 (모바일): {blog_tab_url}")
 
-        driver.get(blog_tab_url)
-        time.sleep(2)
+        response = requests.get(blog_tab_url, headers=headers, timeout=10)
+        blog_html = response.text
 
-        blog_html = driver.page_source
         blog_matches = re.findall(blog_pattern, blog_html)
         blog_links = []
         seen = set()
@@ -589,8 +577,6 @@ def check_blog_ranking():
                 blog_tab_rank = i + 1
                 print(f"[INFO] 블로그 탭 {blog_tab_rank}위 발견")
                 break
-
-        driver.quit()
 
         return jsonify({
             'success': True,
@@ -616,8 +602,6 @@ def check_blog_ranking():
         })
 
     except Exception as e:
-        if driver:
-            driver.quit()
         print(f"[ERROR] 순위 확인 실패: {str(e)}")
         import traceback
         traceback.print_exc()
