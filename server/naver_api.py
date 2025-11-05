@@ -490,6 +490,109 @@ def latest_news():
             'news': []
         })
 
+@app.route('/check_blog_ranking', methods=['POST'])
+def check_blog_ranking():
+    """
+    블로그 순위 추적 API (서버 사이드 크롤링)
+    """
+    try:
+        data = request.get_json()
+        keyword = data.get('keyword')
+        target_url = data.get('targetUrl')
+
+        if not keyword or not target_url:
+            return jsonify({
+                'success': False,
+                'error': '키워드와 URL이 필요합니다.'
+            }), 400
+
+        print(f"[INFO] 블로그 순위 확인: {keyword} / {target_url}")
+
+        # URL 정규화
+        def normalize_url(url):
+            return url.replace('https://', '').replace('http://', '').replace('www.', '').split('?')[0].lower()
+
+        normalized_target = normalize_url(target_url)
+
+        # 1. 통합검색
+        main_search_url = f"https://search.naver.com/search.naver?query={urllib.parse.quote(keyword)}"
+        main_response = requests.get(main_search_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        main_html = main_response.text
+
+        # 블로그 링크 추출 (정규식)
+        import re
+        blog_pattern = r'https?://blog\.naver\.com/[^"\'<>\s]+'
+        main_matches = re.findall(blog_pattern, main_html)
+        main_links = list(set([link.split('?')[0] for link in main_matches]))
+
+        print(f"[INFO] 통합검색: {len(main_links)}개 링크")
+
+        # 순위 찾기
+        smartblock_rank = None
+        main_blog_rank = None
+
+        for i, link in enumerate(main_links[:30]):
+            normalized_link = normalize_url(link)
+            if normalized_target in normalized_link or normalized_link in normalized_target:
+                if i < 10:
+                    smartblock_rank = i + 1
+                else:
+                    main_blog_rank = i - 9
+                break
+
+        # 2. 블로그 탭
+        blog_tab_url = f"https://search.naver.com/search.naver?where=post&query={urllib.parse.quote(keyword)}"
+        blog_response = requests.get(blog_tab_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        blog_html = blog_response.text
+
+        blog_matches = re.findall(blog_pattern, blog_html)
+        blog_links = list(set([link.split('?')[0] for link in blog_matches]))
+
+        print(f"[INFO] 블로그 탭: {len(blog_links)}개 링크")
+
+        blog_tab_rank = None
+        for i, link in enumerate(blog_links[:100]):
+            normalized_link = normalize_url(link)
+            if normalized_target in normalized_link or normalized_link in normalized_target:
+                blog_tab_rank = i + 1
+                break
+
+        return jsonify({
+            'success': True,
+            'smartblock': {
+                'found': smartblock_rank is not None,
+                'rank': smartblock_rank,
+                'area': 'smartblock',
+                'areaName': '통합검색-스마트블록'
+            },
+            'mainBlog': {
+                'found': main_blog_rank is not None,
+                'rank': main_blog_rank,
+                'area': 'blog',
+                'areaName': '통합검색-블로그'
+            },
+            'blogTab': {
+                'found': blog_tab_rank is not None,
+                'rank': blog_tab_rank,
+                'area': 'blog_tab',
+                'areaName': '블로그탭'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        print(f"[ERROR] 순위 확인 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
     load_api_keys()
     port = int(os.getenv('PORT', 8080))

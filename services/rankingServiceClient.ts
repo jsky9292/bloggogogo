@@ -24,25 +24,42 @@ if (import.meta.env.VITE_APP_MODE === 'local') {
 }
 
 /**
- * 모든 영역에서 순위 확인 (Firebase Functions 사용)
+ * 모든 영역에서 순위 확인 (백엔드 API 사용)
  */
 export async function checkAllRankings(
     keyword: string,
     targetUrl: string
 ): Promise<AllRankingResults> {
     try {
-        console.log(`\n🔍 전체 영역 랭킹 확인 시작 (서버 사이드)`);
+        console.log(`\n🔍 전체 영역 랭킹 확인 시작 (백엔드 API)`);
         console.log(`키워드: ${keyword}`);
         console.log(`URL: ${targetUrl}\n`);
 
-        // Firebase Functions 호출
-        const checkAllRankingsFunc = httpsCallable<
-            { keyword: string; targetUrl: string },
-            AllRankingResults
-        >(functions, 'checkAllRankings');
+        // 백엔드 API 호출
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/check_blog_ranking`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ keyword, targetUrl })
+        });
 
-        const result = await checkAllRankingsFunc({ keyword, targetUrl });
-        const rankings = result.data;
+        if (!response.ok) {
+            throw new Error(`API 오류: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || '순위 확인 실패');
+        }
+
+        const rankings: AllRankingResults = {
+            smartblock: result.smartblock,
+            mainBlog: result.mainBlog,
+            blogTab: result.blogTab
+        };
 
         // 결과 출력
         console.log('\n📊 전체 순위 결과:');
@@ -56,18 +73,7 @@ export async function checkAllRankings(
 
     } catch (error: any) {
         console.error('❌ 전체 순위 확인 실패:', error);
-        console.error('에러 코드:', error.code);
-        console.error('에러 메시지:', error.message);
-        console.error('에러 상세:', error.details);
-
-        // Firebase Functions 에러 처리
-        if (error.code === 'unauthenticated') {
-            throw new Error('로그인이 필요합니다.');
-        } else if (error.code === 'invalid-argument') {
-            throw new Error('키워드와 URL을 올바르게 입력해주세요.');
-        } else {
-            throw new Error(`순위 확인 중 오류: ${error.message || error.code}`);
-        }
+        throw new Error(`순위 확인 중 오류: ${error.message}`);
     }
 }
 
