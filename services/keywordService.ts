@@ -19,6 +19,24 @@ const getApiKey = (): string => {
     throw new Error('API 키가 설정되지 않았습니다. 설정에서 Gemini API 키를 입력해주세요.');
 };
 
+// Claude API 키 가져오기
+const getClaudeApiKey = (): string | null => {
+    const userApiKey = localStorage.getItem('claude_api_key');
+    if (userApiKey && userApiKey.trim()) {
+        return userApiKey.trim();
+    }
+    return null;
+};
+
+// ChatGPT API 키 가져오기
+const getChatGPTApiKey = (): string | null => {
+    const userApiKey = localStorage.getItem('chatgpt_api_key');
+    if (userApiKey && userApiKey.trim()) {
+        return userApiKey.trim();
+    }
+    return null;
+};
+
 // NOTE: To combat the inherent unreliability of public CORS proxies, this service employs a highly resilient, multi-strategy approach.
 // 1. Diverse Strategies: It uses a list of proxies that work differently (e.g., direct pass-through vs. JSON-wrapped content), increasing the chance that at least one method will bypass blocking or server issues.
 // 2. Increased Timeout: A generous 15-second timeout accommodates slower proxies.

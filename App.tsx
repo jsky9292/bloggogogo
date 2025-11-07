@@ -572,7 +572,19 @@ const App: React.FC = () => {
             }
         } catch (err) {
             if (err instanceof Error) {
-                setBlogPostError(err.message);
+                // Gemini 429 에러 시 사용자에게 안내
+                if (err.message.includes('429') || err.message.includes('Resource exhausted') || err.message.includes('quota')) {
+                    const claudeKey = localStorage.getItem('claude_api_key');
+                    const chatgptKey = localStorage.getItem('chatgpt_api_key');
+
+                    if (claudeKey || chatgptKey) {
+                        setBlogPostError(`Gemini API 사용량이 초과되었습니다.\n\n현재 ${claudeKey ? 'Claude' : 'ChatGPT'} API 키가 설정되어 있지만, 자동 전환 기능은 아직 개발 중입니다.\n\n해결 방법:\n1. 1분 후 다시 시도 (분당 한도)\n2. 내일 다시 시도 (일일 한도)\n3. Gemini API 유료 플랜 업그레이드`);
+                    } else {
+                        setBlogPostError(`Gemini API 사용량이 초과되었습니다.\n\n해결 방법:\n1. 1분 후 다시 시도 (분당 한도)\n2. 내일 다시 시도 (일일 한도)\n3. Claude 또는 ChatGPT API 키 입력 (왼쪽 API 설정)\n4. Gemini API 유료 플랜 업그레이드`);
+                    }
+                } else {
+                    setBlogPostError(err.message);
+                }
             } else {
                 setBlogPostError('블로그 글 작성 중 알 수 없는 오류가 발생했습니다.');
             }
