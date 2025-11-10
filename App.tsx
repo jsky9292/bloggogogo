@@ -1753,6 +1753,39 @@ const App: React.FC = () => {
                                 </button>
                             )}
 
+                            {/* 사용법 강의 버튼 - 모든 사용자에게 표시 */}
+                            {currentUser && (
+                                <button
+                                    onClick={() => setIsVideoTutorialsOpen(true)}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        color: '#ffffff',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1.05)';
+                                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(124, 58, 237, 0.3)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(124, 58, 237, 0.2)';
+                                    }}
+                                >
+                                    <span>🎬</span>
+                                    <span>사용법 강의</span>
+                                </button>
+                            )}
+
                             {/* Menu - Admin sees all buttons, Users see dropdown */}
                             {currentUser?.role === 'admin' ? (
                                 // Admin view - show all buttons
@@ -1785,36 +1818,6 @@ const App: React.FC = () => {
                                     >
                                         <span>🎓</span>
                                         <span>강의</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setIsVideoTutorialsOpen(true)}
-                                        style={{
-                                            padding: '0.5rem 1rem',
-                                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.3s ease',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            color: '#ffffff',
-                                            fontSize: '0.875rem',
-                                            fontWeight: '500',
-                                            boxShadow: '0 2px 4px rgba(124, 58, 237, 0.2)'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1.05)';
-                                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(124, 58, 237, 0.3)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = 'scale(1)';
-                                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(124, 58, 237, 0.2)';
-                                        }}
-                                    >
-                                        <span>🎬</span>
-                                        <span>영상강의</span>
                                     </button>
 
                                     <button
@@ -1955,7 +1958,7 @@ const App: React.FC = () => {
                                                 }}
                                             >
                                                 <span>🎬</span>
-                                                <span>영상강의</span>
+                                                <span>사용법 강의</span>
                                             </button>
 
                                             <button
