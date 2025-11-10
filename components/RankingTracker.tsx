@@ -118,8 +118,13 @@ const RankingTracker: React.FC<RankingTrackerProps> = ({ userId }) => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">블로그 랭킹 추적</h2>
+      <div className="flex justify-between items-center mb-2">
+        <div>
+          <h2 className="text-2xl font-bold">블로그 랭킹 추적</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            ℹ️ 네이버 검색 API 기준 참고용 순위입니다. 실제 검색 결과와 다를 수 있습니다.
+          </p>
+        </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
