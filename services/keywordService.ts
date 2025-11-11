@@ -1865,9 +1865,10 @@ ${platform === 'naver' ? `
 네이버 블로그 형식으로 작성:
 - 1800-2000자
 - 친근한 대화체
-- 이모티콘 적절히 사용
+- **이모티콘 사용하지 마세요** (깔끔한 텍스트만)
 - [이미지: 설명] 위치 표시
 - 최신 트렌드와 실시간 이슈 중심
+- 폰트 크기: 본문 18px, 줄간격 line-height: 2.0, 문단 간격 충분히
 ` : `
 구글 SEO 형식으로 작성:
 - 2500-3000자
@@ -2185,25 +2186,27 @@ const generateBlogPostWithNews = async (
 5. 대중의 관심사와 반응 포함
 
 ${platform === 'naver' ? `
-네이버 블로그 형식:
+네이버 블로그 형식으로 작성:
 - 1800-2000자
 - ${tone === 'friendly' ? '친근한 반말 대화체 ("~해요", "~예요")' : tone === 'expert' ? '전문가 논문체 ("~입니다", "~습니다")' : '뉴스 기사체 ("~합니다", "~입니다")'}
-- 이모티콘 적절히 사용
+- **이모티콘 사용하지 마세요** (깔끔한 텍스트만)
 - [이미지: 설명] 위치 표시
 
-**HTML 스타일 - 반드시 적용:**
-- 모든 텍스트에 style 속성 포함 (color, font-size, font-weight 등)
-- 색상, 굵기, 크기를 인라인 스타일로만 지정
-- <span style="color: #FF6B6B; font-weight: bold;">강조 텍스트</span> 형식 사용
-- <p style="color: #333; line-height: 1.8;">본문 텍스트</p> 형식 사용
-- <h2 style="color: #4A90E2; font-size: 24px; font-weight: bold;">소제목</h2> 형식 사용
-- <strong>, <span>, <p>, <h1-h3>, <div> 태그에 모두 인라인 style 적용
+**네이버 블로그 에디터 최적화 (필수):**
+1. 폰트 크기: 본문 18px, 제목 24px (네이버 권장 크기)
+2. 줄간격: line-height: 2.0 (넉넉한 간격으로 가독성 확보)
+3. 문단 간격: margin-bottom: 25px (충분한 여백)
+4. 자간: letter-spacing: 0.5px (답답하지 않게)
 
-**색상 팔레트 (적극 활용):**
-- 강조: #FF6B6B (빨강), #4A90E2 (파랑), #50C878 (초록)
-- 제목: #2C3E50 (진한 회색), #34495E (회색)
-- 본문: #333333 (검정), #555555 (회색)
-- 배경: #FFF3E0 (연한 주황), #E3F2FD (연한 파랑)
+**HTML 스타일 템플릿 - 반드시 이 형식 사용:**
+- 본문: <p style="font-size: 18px; color: #333; line-height: 2.0; letter-spacing: 0.5px; margin-bottom: 25px;">텍스트</p>
+- 소제목: <h2 style="font-size: 24px; color: #2C3E50; font-weight: bold; margin: 35px 0 20px 0; line-height: 1.4;">제목</h2>
+- 강조: <span style="font-size: 18px; color: #FF6B6B; font-weight: bold; letter-spacing: 0.5px;">강조</span>
+
+**색상 사용:**
+- 제목: #2C3E50 (진한 회색)
+- 본문: #333333 (검정)
+- 강조: #FF6B6B (빨강), #4A90E2 (파랑)
 ` : `
 구글 SEO 형식:
 - 2500-3000자
