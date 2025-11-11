@@ -18,6 +18,11 @@ interface BlogPostDisplayProps {
 const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, format, platform, schemaMarkup, htmlPreview, metadata }) => {
     const [viewMode, setViewMode] = useState<'preview' | 'source' | 'schema'>('preview');
 
+    // HTML 태그 제거 함수
+    const stripHtmlTags = (html: string): string => {
+        return html.replace(/<[^>]*>/g, '');
+    };
+
     const renderPreview = () => {
         if (format === 'html') {
             // 네이버: htmlPreview 사용 (iframe으로 렌더링)
@@ -215,7 +220,7 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
 
             <div className="space-y-4">
                 <div className="bg-gray-900 rounded-lg p-3">
-                    <h4 className="text-yellow-300 font-bold text-lg mb-2">{title}</h4>
+                    <h4 className="text-yellow-300 font-bold text-lg mb-2">{stripHtmlTags(title)}</h4>
                     <div className="flex flex-wrap gap-2 text-xs">
                         <span className={`px-2 py-1 rounded ${platform === 'naver' ? 'bg-green-800' : 'bg-blue-800'} text-white`}>
                             {getPlatformLabel()}
