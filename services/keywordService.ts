@@ -1868,7 +1868,8 @@ ${platform === 'naver' ? `
 - **이모티콘 사용하지 마세요** (깔끔한 텍스트만)
 - [이미지: 설명] 위치 표시
 - 최신 트렌드와 실시간 이슈 중심
-- 폰트 크기: 본문 18px, 줄간격 line-height: 2.0, 문단 간격 충분히
+- 폰트: 본문 16px, 중간제목 19px, 글제목 24px
+- 줄간격: line-height 1.8 (180%), 자간: letter-spacing -0.3px
 ` : `
 구글 SEO 형식으로 작성:
 - 2500-3000자
@@ -2193,15 +2194,16 @@ ${platform === 'naver' ? `
 - [이미지: 설명] 위치 표시
 
 **네이버 블로그 에디터 최적화 (필수):**
-1. 폰트 크기: 본문 18px, 제목 24px (네이버 권장 크기)
-2. 줄간격: line-height: 2.0 (넉넉한 간격으로 가독성 확보)
-3. 문단 간격: margin-bottom: 25px (충분한 여백)
-4. 자간: letter-spacing: 0.5px (답답하지 않게)
+1. 폰트 크기: 본문 16px, 중간제목(h3) 19px, 글제목(h2) 24px
+2. 줄간격: line-height: 1.8 (180% - 네이버 기본값)
+3. 문단 간격: margin-bottom: 20px
+4. 자간: letter-spacing: -0.3px (네이버 기본값)
 
-**HTML 스타일 템플릿 - 반드시 이 형식 사용:**
-- 본문: <p style="font-size: 18px; color: #333; line-height: 2.0; letter-spacing: 0.5px; margin-bottom: 25px;">텍스트</p>
-- 소제목: <h2 style="font-size: 24px; color: #2C3E50; font-weight: bold; margin: 35px 0 20px 0; line-height: 1.4;">제목</h2>
-- 강조: <span style="font-size: 18px; color: #FF6B6B; font-weight: bold; letter-spacing: 0.5px;">강조</span>
+**HTML 스타일 템플릿 - 네이버에서는 태그만 있고 인라인 스타일로 h 태그 느낌 구현:**
+- 본문: <p style="font-size: 16px; color: #333; line-height: 1.8; letter-spacing: -0.3px; margin-bottom: 20px;">텍스트</p>
+- 글제목(h2 느낌): <h2 style="font-size: 24px; color: #2C3E50; font-weight: bold; margin: 35px 0 15px 0; line-height: 1.4; letter-spacing: -0.3px;">제목</h2>
+- 중간제목(h3 느낌): <h3 style="font-size: 19px; color: #2C3E50; font-weight: bold; margin: 25px 0 12px 0; line-height: 1.5; letter-spacing: -0.3px;">소제목</h3>
+- 강조: <span style="font-size: 16px; color: #FF6B6B; font-weight: bold;">강조</span>
 
 **색상 사용:**
 - 제목: #2C3E50 (진한 회색)
