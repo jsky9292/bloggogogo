@@ -197,7 +197,7 @@ const Footer: React.FC = () => {
                                 color: '#a0a0a0',
                                 marginBottom: '0.5rem'
                             }}>
-                                Email: support@keywordinsight.pro
+                                Email: jsk9292@gmail.com
                             </p>
                             <p style={{
                                 fontSize: '0.875rem',
