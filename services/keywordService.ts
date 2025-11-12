@@ -235,7 +235,7 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -678,7 +678,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -831,7 +831,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
     }
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -931,7 +931,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const responseSchema = {
       type: SchemaType.ARRAY,
@@ -1058,7 +1058,7 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -1168,7 +1168,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1288,7 +1288,7 @@ ${paaText}
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1377,7 +1377,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1804,7 +1804,7 @@ export const generateTrendBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // 오늘 날짜
     const today = new Date();
@@ -1860,26 +1860,29 @@ export const generateTrendBlogPost = async (
 당신은 실시간 트렌드 블로그 작성 전문가입니다.
 오늘은 ${formattedDate}입니다.
 
-**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
+**중요: 현재 시점(${formattedDate})의 정보를 기반으로 작성하되, 제목이나 본문에 연도(${today.getFullYear()}년)를 명시적으로 포함하지 마세요. 대신 "최신", "요즘", "현재" 등의 표현을 사용하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
 작성 톤: ${toneMap[tone]}
 
 중요 지침:
-1. 먼저 "${topic}"에 대한 ${today.getFullYear()}년 ${today.getMonth() + 1}월 최신 뉴스와 정보를 검색하세요.
+1. 먼저 "${topic}"에 대한 최신 뉴스와 정보를 검색하세요 (${formattedDate} 기준).
 2. 실제 일어난 사건, 발표, 이슈 등을 파악하세요.
 3. 구체적인 날짜, 인물, 장소, 사실을 포함하세요.
-4. "오늘", "최근", "방금" 등 시의성 있는 표현을 사용하세요.
+4. "오늘", "최근", "방금", "요즘" 등 시의성 있는 표현을 사용하세요.
 5. 대중의 관심사와 반응을 반영하세요.
+6. **제목과 본문에 특정 연도(예: "2025년")를 명시하지 마세요. 시간이 지나도 유효한 콘텐츠로 작성하세요.**
 
 ${platform === 'naver' ? `
 네이버 블로그 형식으로 작성:
 - **최소 2000자 이상 (2000-2500자 권장)**
 - 친근한 대화체
-- 이모티콘 적절히 사용
+- **이모티콘 사용하지 마세요** (깔끔한 텍스트만)
 - [이미지: 설명] 위치 표시
 - 최신 트렌드와 실시간 이슈 중심
+- 폰트: 본문 16px, 중간제목 19px, 글제목 24px
+- 줄간격: line-height 1.8 (180%), 자간: letter-spacing -0.3px
 
 ${topic.match(/보험|실손|의료|병원|진료|치료|질병|암|건강보험|실비|보장성|특약/) ? `
 ⚠️ **보험/의료 관련 주제 - 심의 기준 필수 준수:**
@@ -2150,7 +2153,7 @@ const generateBlogPostWithNews = async (
     newsInfo: any
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -2173,7 +2176,7 @@ const generateBlogPostWithNews = async (
 당신은 실시간 트렌드 블로그 작성 전문가입니다.
 오늘은 ${formattedDate}입니다.
 
-**중요: 현재 연도는 2025년입니다. 모든 날짜와 연도 관련 내용은 2025년 기준으로 작성하세요.**
+**중요: 현재 시점(${formattedDate})의 정보를 기반으로 작성하되, 제목이나 본문에 연도(${today.getFullYear()}년)를 명시적으로 포함하지 마세요. 대신 "최신", "요즘", "현재" 등의 표현을 사용하세요.**
 
 주제: ${topic}
 핵심 키워드: ${keywords.join(', ')}
@@ -2216,8 +2219,14 @@ ${platform === 'naver' ? `
 네이버 블로그 형식:
 - **최소 2000자 이상 (2000-2500자 권장)**
 - ${tone === 'friendly' ? '친근한 반말 대화체 ("~해요", "~예요")' : tone === 'expert' ? '전문가 논문체 ("~입니다", "~습니다")' : '뉴스 기사체 ("~합니다", "~입니다")'}
-- 이모티콘 적절히 사용
+- **이모티콘 사용하지 마세요** (깔끔한 텍스트만)
 - [이미지: 설명] 위치 표시
+
+**네이버 블로그 에디터 최적화 (필수):**
+1. 폰트 크기: 본문 16px, 중간제목(h3) 19px, 글제목(h2) 24px
+2. 줄간격: line-height: 1.8 (180% - 네이버 기본값)
+3. 문단 간격: margin-bottom: 20px
+4. 자간: letter-spacing: -0.3px (네이버 기본값)
 
 ${topic.match(/보험|실손|의료|병원|진료|치료|질병|암|건강보험|실비|보장성|특약/) ? `
 ⚠️ **보험/의료 관련 주제 - 심의 기준 필수 준수:**
@@ -2235,19 +2244,16 @@ ${topic.match(/보험|실손|의료|병원|진료|치료|질병|암|건강보험
 - 면책 문구 및 전문가 상담 권유
 ` : ''}
 
-**HTML 스타일 - 반드시 적용:**
-- 모든 텍스트에 style 속성 포함 (color, font-size, font-weight 등)
-- 색상, 굵기, 크기를 인라인 스타일로만 지정
-- <span style="color: #FF6B6B; font-weight: bold;">강조 텍스트</span> 형식 사용
-- <p style="color: #333; line-height: 1.8;">본문 텍스트</p> 형식 사용
-- <h2 style="color: #4A90E2; font-size: 24px; font-weight: bold;">소제목</h2> 형식 사용
-- <strong>, <span>, <p>, <h1-h3>, <div> 태그에 모두 인라인 style 적용
+**HTML 스타일 템플릿 - 네이버에서는 태그만 있고 인라인 스타일로 h 태그 느낌 구현:**
+- 본문: <p style="font-size: 16px; color: #333; line-height: 1.8; letter-spacing: -0.3px; margin-bottom: 20px;">텍스트</p>
+- 글제목(h2 느낌): <h2 style="font-size: 24px; color: #2C3E50; font-weight: bold; margin: 35px 0 15px 0; line-height: 1.4; letter-spacing: -0.3px;">제목</h2>
+- 중간제목(h3 느낌): <h3 style="font-size: 19px; color: #2C3E50; font-weight: bold; margin: 25px 0 12px 0; line-height: 1.5; letter-spacing: -0.3px;">소제목</h3>
+- 강조: <span style="font-size: 16px; color: #FF6B6B; font-weight: bold;">강조</span>
 
-**색상 팔레트 (적극 활용):**
-- 강조: #FF6B6B (빨강), #4A90E2 (파랑), #50C878 (초록)
-- 제목: #2C3E50 (진한 회색), #34495E (회색)
-- 본문: #333333 (검정), #555555 (회색)
-- 배경: #FFF3E0 (연한 주황), #E3F2FD (연한 파랑)
+**색상 사용:**
+- 제목: #2C3E50 (진한 회색)
+- 본문: #333333 (검정)
+- 강조: #FF6B6B (빨강), #4A90E2 (파랑)
 ` : `
 구글 SEO 형식:
 - 2500-3000자
@@ -2385,7 +2391,7 @@ export const generateBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
@@ -3057,7 +3063,7 @@ ${formatTemplate}
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `
     오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
