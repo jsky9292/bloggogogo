@@ -4,12 +4,26 @@ const FLASK_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export async function searchNaverKeywords(keyword: string): Promise<NaverKeywordData[]> {
   try {
+    // localStorage에서 네이버 API 키 가져오기
+    const naverKeysStr = localStorage.getItem('naverApiKeys');
+    const apiKeys = naverKeysStr ? JSON.parse(naverKeysStr) : null;
+
+    // 광고 API 키 확인 (키워드 검색용)
+    const hasAdApi = apiKeys?.adApiKey && apiKeys?.adSecretKey && apiKeys?.adCustomerId;
+
+    if (!hasAdApi) {
+      throw new Error('⚠️ 네이버 광고 API 키가 필요합니다.\n\n"API 키 입력" 버튼을 클릭하여 다음 정보를 입력해주세요:\n- API Key\n- Secret Key\n- Customer ID');
+    }
+
     const response = await fetch(`${FLASK_API_URL}/search_keywords`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ keyword }),
+      body: JSON.stringify({
+        keyword,
+        apiKeys // 사용자의 API 키 전달
+      }),
     });
 
     const result = await response.json();
@@ -32,12 +46,26 @@ export async function analyzeNaverCompetition(keywords: NaverKeywordData[]): Pro
     console.log('[DEBUG] API 요청:', `${FLASK_API_URL}/analyze_competition`);
     console.log('[DEBUG] 요청 키워드 수:', keywords.length);
 
+    // localStorage에서 네이버 API 키 가져오기
+    const naverKeysStr = localStorage.getItem('naverApiKeys');
+    const apiKeys = naverKeysStr ? JSON.parse(naverKeysStr) : null;
+
+    // 검색 API 키 확인 (경쟁도 분석용)
+    const hasSearchApi = apiKeys?.searchClientId && apiKeys?.searchClientSecret;
+
+    if (!hasSearchApi) {
+      throw new Error('⚠️ 네이버 검색 API 키가 필요합니다.\n\n"API 키 입력" 버튼을 클릭하여 다음 정보를 입력해주세요:\n- Client ID\n- Client Secret');
+    }
+
     const response = await fetch(`${FLASK_API_URL}/analyze_competition`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ keywords }),
+      body: JSON.stringify({
+        keywords,
+        apiKeys // 사용자의 API 키 전달
+      }),
     });
 
     console.log('[DEBUG] API 응답 상태:', response.status, response.statusText);

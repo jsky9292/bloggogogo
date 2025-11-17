@@ -229,7 +229,7 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                             {format === 'text' ? 'Text' : format === 'html' ? 'HTML' : 'Markdown'}
                         </span>
                         <span className="px-2 py-1 rounded bg-gray-700 text-gray-300">
-                            {platform === 'naver' ? '2000-2500자' : '2500-3000자'}
+                            {platform === 'naver' ? '1800-2000자' : '2500-3000자'}
                         </span>
                     </div>
                 </div>

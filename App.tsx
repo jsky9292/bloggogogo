@@ -487,6 +487,7 @@ const App: React.FC = () => {
         options: {
             contentFormat?: 'comparison' | 'listicle' | 'guide';
             tone: 'friendly' | 'expert' | 'informative';
+            aiModel: 'gemini' | 'claude' | 'chatgpt';
         }
     ) => {
         console.log('executeGenerateBlogPost called with:', topic, options);
@@ -563,7 +564,17 @@ const App: React.FC = () => {
                 ? topic.keywords
                 : keywords;
 
-            const post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, options.tone, options.contentFormat);
+            // AI 모델에 따라 다른 함수 호출
+            let post;
+            if (options.aiModel === 'gemini') {
+                post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, options.tone, options.contentFormat);
+            } else if (options.aiModel === 'claude') {
+                // TODO: Claude API 함수 구현
+                throw new Error('Claude API는 아직 구현 중입니다.');
+            } else if (options.aiModel === 'chatgpt') {
+                // TODO: ChatGPT API 함수 구현
+                throw new Error('ChatGPT API는 아직 구현 중입니다.');
+            }
             setBlogPost({ ...post, platform: topic.platform });
 
             // ✅ 블로그 생성 성공 시 일일 사용량 증가

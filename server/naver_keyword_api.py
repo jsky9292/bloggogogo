@@ -37,12 +37,13 @@ class Signature:
         return {'Content-Type': 'application/json; charset=UTF-8', 'X-Timestamp': timestamp,
                 'X-API-KEY': api_key, 'X-Customer': str(customer_id), 'X-Signature': signature}
 
-    def getresults(self, hintKeywords):
+    def getresults(self, hintKeywords, api_key=None, secret_key=None, customer_id=None):
         BASE_URL = 'https://api.naver.com'
 
-        API_KEY = ad_userkey_list[0]
-        SECRET_KEY = ad_userkey_list[1]
-        CUSTOMER_ID = ad_userkey_list[2]
+        # 사용자 제공 API 키가 있으면 사용, 없으면 기본 키 사용
+        API_KEY = api_key if api_key else ad_userkey_list[0]
+        SECRET_KEY = secret_key if secret_key else ad_userkey_list[1]
+        CUSTOMER_ID = customer_id if customer_id else ad_userkey_list[2]
 
         uri = '/keywordstool'
         method = 'GET'
@@ -109,12 +110,22 @@ def load_api_keys():
 @app.route('/search_keywords', methods=['POST'])
 def search_keywords():
     try:
-        keyword = request.json['keyword']
+        data = request.json
+        keyword = data['keyword']
+
+        # 사용자가 제공한 API 키 (선택사항)
+        api_keys = data.get('apiKeys', {})
+        user_api_key = api_keys.get('adApiKey')
+        user_secret_key = api_keys.get('adSecretKey')
+        user_customer_id = api_keys.get('adCustomerId')
+
         print(f"[INFO] 키워드 검색 요청: {keyword}")
+        print(f"[INFO] 사용자 API 키 제공: {bool(user_api_key)}")
+
         signature_obj = Signature()
 
-        # 연관 키워드 조회
-        df = signature_obj.getresults(keyword)
+        # 연관 키워드 조회 (사용자 API 키 또는 기본 키)
+        df = signature_obj.getresults(keyword, user_api_key, user_secret_key, user_customer_id)
         print(f"[INFO] 조회된 키워드 수: {len(df)}")
 
         df.rename({
@@ -141,16 +152,26 @@ def search_keywords():
 @app.route('/analyze_competition', methods=['POST'])
 def analyze_competition():
     try:
-        keywords_data = request.json['keywords']
+        data = request.json
+        keywords_data = data['keywords']
+
+        # 사용자가 제공한 검색 API 키 (선택사항)
+        api_keys = data.get('apiKeys', {})
+        user_client_id = api_keys.get('searchClientId')
+        user_client_secret = api_keys.get('searchClientSecret')
+
         print(f"[INFO] 경쟁도 분석 요청: {len(keywords_data)}개 키워드")
+        print(f"[INFO] 사용자 검색 API 키 제공: {bool(user_client_id)}")
+
         df = pd.DataFrame(keywords_data)
 
         total_values_list = []
 
         for idx, text in enumerate(df['연관키워드']):
             try:
-                client_id = search_userkey_list[0]
-                client_secret = search_userkey_list[1]
+                # 사용자 키가 있으면 사용, 없으면 기본 키 사용
+                client_id = user_client_id if user_client_id else search_userkey_list[0]
+                client_secret = user_client_secret if user_client_secret else search_userkey_list[1]
 
                 encText = urllib.parse.quote(text)
                 url = "https://openapi.naver.com/v1/search/blog?query=" + encText
@@ -223,4 +244,4 @@ def download_file(filename):
 load_api_keys()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8081)
+    app.run(debug=True, port=8080)

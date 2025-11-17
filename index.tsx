@@ -9,10 +9,12 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+const basename = import.meta.env.CUSTOM_DOMAIN === 'true' ? '/' : '/bloggogogo/';
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <AppRouter />
     </BrowserRouter>
   </React.StrictMode>
