@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     // 커스텀 도메인을 사용하는 경우 base를 '/'로 설정
-    const isCustomDomain = process.env.CUSTOM_DOMAIN === 'true';
+    const isCustomDomain = env.CUSTOM_DOMAIN === 'true';
     return {
       base: isCustomDomain ? '/' : '/bloggogogo/',
       plugins: [react()],
