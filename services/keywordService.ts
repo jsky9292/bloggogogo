@@ -37,17 +37,24 @@ const getChatGPTApiKey = (): string | null => {
     return null;
 };
 
-// Gemini API 재시도 로직을 위한 헬퍼 함수
+// Gemini API 재시도 로직을 위한 헬퍼 함수 (모델 폴백 포함)
 const retryGeminiAPI = async <T>(
-    apiCall: () => Promise<T>,
+    apiCall: (modelName: string) => Promise<T>,
     operationName: string = 'API 호출',
-    maxRetries: number = 3
+    maxRetries: number = 3,
+    initialModel: string = 'gemini-1.5-flash'
 ): Promise<T> => {
+    // 폴백 모델 순서: 2.5-flash -> 1.5-flash -> 1.5-pro
+    const fallbackModels = ['gemini-1.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    let currentModelIndex = fallbackModels.indexOf(initialModel);
+    if (currentModelIndex === -1) currentModelIndex = 0;
+
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            return await apiCall();
+            const currentModel = fallbackModels[currentModelIndex];
+            return await apiCall(currentModel);
         } catch (error) {
             lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
 
@@ -58,9 +65,18 @@ const retryGeminiAPI = async <T>(
                               error.message.includes('overloaded'));
 
             if (is503Error && attempt < maxRetries) {
-                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
-                console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                // 다음 폴백 모델로 전환
+                if (currentModelIndex < fallbackModels.length - 1) {
+                    currentModelIndex++;
+                    const nextModel = fallbackModels[currentModelIndex];
+                    console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. 더 안정적인 모델(${nextModel})로 전환 중...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기 후 전환
+                } else {
+                    // 모든 모델 시도했으면 exponential backoff
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
                 continue;
             }
 
@@ -271,7 +287,7 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // 더 안정적인 모델 사용
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -745,7 +761,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -898,7 +914,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
     }
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -998,7 +1014,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const responseSchema = {
       type: SchemaType.ARRAY,
@@ -1157,7 +1173,7 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -1267,7 +1283,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1387,7 +1403,7 @@ ${paaText}
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1476,7 +1492,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1903,7 +1919,7 @@ export const generateTrendBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // 오늘 날짜
     const today = new Date();
@@ -2252,7 +2268,7 @@ const generateBlogPostWithNews = async (
     newsInfo: any
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -2490,7 +2506,7 @@ export const generateBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
@@ -3193,7 +3209,7 @@ ${formatTemplate}
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `
     오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
