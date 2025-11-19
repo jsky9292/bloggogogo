@@ -6,7 +6,6 @@ interface BlogWritingModalProps {
     onConfirm: (options: {
         contentFormat?: 'comparison' | 'listicle' | 'guide';
         tone: 'friendly' | 'expert' | 'informative';
-        aiModel: 'gemini' | 'claude' | 'chatgpt';
     }) => void;
     platform: 'naver' | 'google';
 }
@@ -14,15 +13,13 @@ interface BlogWritingModalProps {
 const BlogWritingModal: React.FC<BlogWritingModalProps> = ({ isOpen, onClose, onConfirm, platform }) => {
     const [contentFormat, setContentFormat] = useState<'comparison' | 'listicle' | 'guide'>('guide');
     const [tone, setTone] = useState<'friendly' | 'expert' | 'informative'>('informative');
-    const [aiModel, setAiModel] = useState<'gemini' | 'claude' | 'chatgpt'>('gemini');
 
     if (!isOpen) return null;
 
     const handleConfirm = () => {
         onConfirm({
             contentFormat: platform === 'google' ? contentFormat : undefined,
-            tone,
-            aiModel
+            tone
         });
         onClose();
     };
@@ -274,104 +271,6 @@ const BlogWritingModal: React.FC<BlogWritingModalProps> = ({ isOpen, onClose, on
                                     </div>
                                     <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                                         "~바랍니다", "~것입니다" 논문체, 데이터/연구 인용, 심층 분석
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* AI 모델 선택 (네이버, 구글 공통) */}
-                    <div style={{ marginTop: '24px' }}>
-                        <label style={{
-                            display: 'block',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            color: '#374151',
-                            marginBottom: '12px'
-                        }}>
-                            🤖 AI 모델 선택
-                        </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '12px',
-                                border: aiModel === 'gemini' ? '2px solid #8b5cf6' : '2px solid #e5e7eb',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                backgroundColor: aiModel === 'gemini' ? '#f3e8ff' : '#ffffff',
-                                transition: 'all 0.2s'
-                            }}>
-                                <input
-                                    type="radio"
-                                    name="aiModel"
-                                    value="gemini"
-                                    checked={aiModel === 'gemini'}
-                                    onChange={(e) => setAiModel(e.target.value as 'gemini' | 'claude' | 'chatgpt')}
-                                    style={{ marginRight: '12px' }}
-                                />
-                                <div>
-                                    <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
-                                        💎 Gemini 2.0 Flash
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                        빠른 속도, 무료 할당량 제공
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '12px',
-                                border: aiModel === 'claude' ? '2px solid #8b5cf6' : '2px solid #e5e7eb',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                backgroundColor: aiModel === 'claude' ? '#f3e8ff' : '#ffffff',
-                                transition: 'all 0.2s'
-                            }}>
-                                <input
-                                    type="radio"
-                                    name="aiModel"
-                                    value="claude"
-                                    checked={aiModel === 'claude'}
-                                    onChange={(e) => setAiModel(e.target.value as 'gemini' | 'claude' | 'chatgpt')}
-                                    style={{ marginRight: '12px' }}
-                                />
-                                <div>
-                                    <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
-                                        🧠 Claude 3.5 Sonnet
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                        높은 품질, 자연스러운 문체
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '12px',
-                                border: aiModel === 'chatgpt' ? '2px solid #8b5cf6' : '2px solid #e5e7eb',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                backgroundColor: aiModel === 'chatgpt' ? '#f3e8ff' : '#ffffff',
-                                transition: 'all 0.2s'
-                            }}>
-                                <input
-                                    type="radio"
-                                    name="aiModel"
-                                    value="chatgpt"
-                                    checked={aiModel === 'chatgpt'}
-                                    onChange={(e) => setAiModel(e.target.value as 'gemini' | 'claude' | 'chatgpt')}
-                                    style={{ marginRight: '12px' }}
-                                />
-                                <div>
-                                    <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
-                                        ⚡ ChatGPT 4.0
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                        안정적인 품질, 빠른 응답
                                     </div>
                                 </div>
                             </label>
