@@ -38,6 +38,7 @@ jobs:
         run: npm run build
         env:
           CUSTOM_DOMAIN: 'true'
+          VITE_CUSTOM_DOMAIN: 'true'
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
