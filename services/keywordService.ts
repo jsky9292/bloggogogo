@@ -1022,64 +1022,96 @@ const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTo
       }
     };
 
-    try {
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema
-            }
-        });
-        const response = await result.response;
-        const text = response.text();
+    // 재시도 로직 추가 (exponential backoff)
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-        console.log('Blog Topics - AI 원본 응답:', text);
-
-        let parsed;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            // Try direct JSON parsing first (for structured output)
-            parsed = JSON.parse(text);
-            console.log('Blog Topics - 직접 JSON 파싱 성공');
-        } catch (jsonError) {
-            console.log('Blog Topics - 직접 JSON 파싱 실패, extractJsonFromText 사용');
-            // Fallback to extractJsonFromText for markdown code blocks
-            parsed = extractJsonFromText(text);
-        }
+            const result = await model.generateContent({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
+                }
+            });
+            const response = await result.response;
+            const text = response.text();
 
-        console.log('Blog Topics - 파싱된 데이터:', parsed);
-        console.log('Blog Topics - 데이터 타입:', typeof parsed);
-        console.log('Blog Topics - 배열인가?:', Array.isArray(parsed));
+            console.log('Blog Topics - AI 원본 응답:', text);
 
-        if (!Array.isArray(parsed)) {
-            console.error('Blog Topics - 배열이 아닌 데이터:', parsed);
-            throw new Error('AI 응답이 배열 형식이 아닙니다.');
-        }
-
-        return parsed.map((item, index) => {
-            if (!item.title || !item.thumbnailCopy || !item.strategy) {
-                console.error(`Blog Topics - 항목 ${index + 1}에 필수 속성이 누락됨:`, item);
-                throw new Error(`AI 응답의 ${index + 1}번째 항목에 필수 속성이 누락되었습니다.`);
+            let parsed;
+            try {
+                // Try direct JSON parsing first (for structured output)
+                parsed = JSON.parse(text);
+                console.log('Blog Topics - 직접 JSON 파싱 성공');
+            } catch (jsonError) {
+                console.log('Blog Topics - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+                // Fallback to extractJsonFromText for markdown code blocks
+                parsed = extractJsonFromText(text);
             }
-            return {
-                id: index + 1,
-                title: item.title,
-                thumbnailCopy: item.thumbnailCopy,
-                strategy: item.strategy,
-            };
-        });
 
-    } catch (error) {
-         if (error instanceof Error) {
-            console.error("Gemini API 호출 중 오류 발생:", error);
-            if (error.message.includes('JSON')) {
-                 throw new Error(`AI 모델이 비정상적인 데이터를 반환했습니다. 다른 키워드로 다시 시도해주세요.`);
+            console.log('Blog Topics - 파싱된 데이터:', parsed);
+            console.log('Blog Topics - 데이터 타입:', typeof parsed);
+            console.log('Blog Topics - 배열인가?:', Array.isArray(parsed));
+
+            if (!Array.isArray(parsed)) {
+                console.error('Blog Topics - 배열이 아닌 데이터:', parsed);
+                throw new Error('AI 응답이 배열 형식이 아닙니다.');
             }
-            throw new Error(`블로그 주제 생성 중 AI 모델과 통신하는 데 실패했습니다. 오류: ${error.message}`);
-        } else {
-            console.error("알 수 없는 오류 발생:", error);
-            throw new Error('블로그 주제 생성 중 알 수 없는 오류가 발생했습니다.');
+
+            // 성공 시 결과 반환
+            return parsed.map((item, index) => {
+                if (!item.title || !item.thumbnailCopy || !item.strategy) {
+                    console.error(`Blog Topics - 항목 ${index + 1}에 필수 속성이 누락됨:`, item);
+                    throw new Error(`AI 응답의 ${index + 1}번째 항목에 필수 속성이 누락되었습니다.`);
+                }
+                return {
+                    id: index + 1,
+                    title: item.title,
+                    thumbnailCopy: item.thumbnailCopy,
+                    strategy: item.strategy,
+                };
+            });
+
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
+
+            // 503 에러 또는 overload 에러인 경우 재시도
+            const is503Error = error instanceof Error &&
+                             (error.message.includes('503') ||
+                              error.message.includes('overload') ||
+                              error.message.includes('overloaded'));
+
+            if (is503Error && attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
+                console.log(`Gemini API 과부하 감지 (블로그 주제 생성). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue; // 다음 시도로
+            }
+
+            // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
+            if (error instanceof Error) {
+                console.error("Gemini API 호출 중 오류 발생:", error);
+
+                // 503 서버 과부하 에러
+                if (is503Error) {
+                    throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+                }
+
+                if (error.message.includes('JSON')) {
+                    throw new Error(`AI 모델이 비정상적인 데이터를 반환했습니다. 다른 키워드로 다시 시도해주세요.`);
+                }
+                throw new Error(`블로그 주제 생성 중 AI 모델과 통신하는 데 실패했습니다. 오류: ${error.message}`);
+            } else {
+                console.error("알 수 없는 오류 발생:", error);
+                throw new Error('블로그 주제 생성 중 알 수 없는 오류가 발생했습니다.');
+            }
         }
     }
+
+    // 모든 재시도 실패
+    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 export const generateTopicsFromMainKeyword = async (keyword: string): Promise<GeneratedTopic[]> => {
