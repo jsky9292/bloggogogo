@@ -401,6 +401,11 @@ const App: React.FC = () => {
         setKeyword(clickedKeyword);
         handleSearch(clickedKeyword);
     };
+
+    // 재시도 함수 - 현재 키워드와 설정으로 다시 검색
+    const handleRetry = () => {
+        handleSearch(mainKeyword || keyword);
+    };
     
     const isBlogResults = (data: (KeywordData | BlogPostData | KeywordMetrics | GoogleSerpData)[]): data is BlogPostData[] => {
         return data.length > 0 && 'url' in data[0];
@@ -2042,8 +2047,8 @@ const App: React.FC = () => {
                                     {!recoLoading && !recoError && !recommendedKeywords && (
                                         <>
                                             {(loading || sustainableTopicsLoading) && <LoadingSpinner />}
-                                            {error && <ErrorMessage message={error} />}
-                                            {sustainableTopicsError && <ErrorMessage message={sustainableTopicsError} />}
+                                            {error && <ErrorMessage message={error} onRetry={handleRetry} />}
+                                            {sustainableTopicsError && <ErrorMessage message={sustainableTopicsError} onRetry={handleRetry} />}
                                             
                                             {!loading && !error && !sustainableTopicsLoading && !sustainableTopicsError &&(
                                                 <>

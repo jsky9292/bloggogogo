@@ -292,95 +292,126 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     \`\`\`
   `.trim();
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+  // 재시도 로직 추가 (exponential backoff)
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-    console.log('Related Keywords - AI 원본 응답:', text);
-
-    if (!text) {
-        throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
-    }
-
-    let keywords;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-        // Try direct JSON parsing first (for structured output)
-        keywords = JSON.parse(text);
-        console.log('Related Keywords - 직접 JSON 파싱 성공');
-    } catch (jsonError) {
-        console.log('Related Keywords - 직접 JSON 파싱 실패, extractJsonFromText 사용');
-        // Fallback to extractJsonFromText for markdown code blocks
-        keywords = extractJsonFromText(text);
-    }
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-    console.log('Related Keywords - 파싱된 데이터:', keywords);
+      console.log('Related Keywords - AI 원본 응답:', text);
 
-    // Enhanced validation but keep it simple
-    if (!keywords || typeof keywords !== 'object') {
-        console.error('Related Keywords - 객체가 아님:', keywords);
-        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-    }
+      if (!text) {
+          throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
+      }
 
-    if (!keywords.related_searches || !keywords.people_also_ask) {
-        console.error('Related Keywords - 필수 속성 누락:', keywords);
-        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-    }
+      let keywords;
+      try {
+          // Try direct JSON parsing first (for structured output)
+          keywords = JSON.parse(text);
+          console.log('Related Keywords - 직접 JSON 파싱 성공');
+      } catch (jsonError) {
+          console.log('Related Keywords - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+          // Fallback to extractJsonFromText for markdown code blocks
+          keywords = extractJsonFromText(text);
+      }
 
-    if (!Array.isArray(keywords.related_searches) || !Array.isArray(keywords.people_also_ask)) {
-        console.error('Related Keywords - 배열이 아님:', {
-            related_searches: keywords.related_searches,
-            people_also_ask: keywords.people_also_ask
-        });
-        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-    }
+      console.log('Related Keywords - 파싱된 데이터:', keywords);
 
-    // Type validation and cleaning
-    const citationRegex = /\[\d+(, ?\d+)*\]/g;
+      // Enhanced validation but keep it simple
+      if (!keywords || typeof keywords !== 'object') {
+          console.error('Related Keywords - 객체가 아님:', keywords);
+          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+      }
 
-    const cleanedPaas = keywords.people_also_ask.map((paa: any, index: number) => {
-        // Provide fallback values if properties are missing
-        return {
-            question: (paa?.question || `질문 ${index + 1}`).replace(citationRegex, '').trim(),
-            answer: (paa?.answer || '답변을 찾을 수 없습니다.').replace(citationRegex, '').trim(),
-            content_gap_analysis: (paa?.content_gap_analysis || '분석 정보가 없습니다.').replace(citationRegex, '').trim(),
-        };
-    }).slice(0, 5);
+      if (!keywords.related_searches || !keywords.people_also_ask) {
+          console.error('Related Keywords - 필수 속성 누락:', keywords);
+          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+      }
 
-    const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
-        (search || '').replace(citationRegex, '').trim()
-    );
+      if (!Array.isArray(keywords.related_searches) || !Array.isArray(keywords.people_also_ask)) {
+          console.error('Related Keywords - 배열이 아님:', {
+              related_searches: keywords.related_searches,
+              people_also_ask: keywords.people_also_ask
+          });
+          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+      }
 
-    return {
-        related_searches: cleanedRelatedSearches,
-        people_also_ask: cleanedPaas,
-    };
+      // Type validation and cleaning
+      const citationRegex = /\[\d+(, ?\d+)*\]/g;
 
-  } catch (error) {
-    console.error("AI 연관검색어 분석 중 오류 발생:", error);
-    
-    if (error instanceof Error) {
-        // API 응답 문제
-        if (error.message.includes('비어있습니다') || error.message.includes('trim')) {
-            throw new Error('AI가 비어있는 응답을 반환했습니다. 다시 시도해주세요.');
-        }
-        
-        // JSON 파싱 문제
-        if (error.message.includes('JSON')) {
-            throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-        }
-        
-        // 토큰 제한
-        if (error.message.includes('exceeded') || error.message.includes('limit')) {
-            throw new Error('키워드가 너무 깁니다. 더 짧은 키워드로 시도해주세요.');
-        }
-        
-        // 기타 오류
-        throw new Error(`AI 연관검색어 분석 중 오류가 발생했습니다: ${error.message}`);
-    } else {
-        throw new Error('AI 연관검색어 분석 중 알 수 없는 오류가 발생했습니다.');
+      const cleanedPaas = keywords.people_also_ask.map((paa: any, index: number) => {
+          // Provide fallback values if properties are missing
+          return {
+              question: (paa?.question || `질문 ${index + 1}`).replace(citationRegex, '').trim(),
+              answer: (paa?.answer || '답변을 찾을 수 없습니다.').replace(citationRegex, '').trim(),
+              content_gap_analysis: (paa?.content_gap_analysis || '분석 정보가 없습니다.').replace(citationRegex, '').trim(),
+          };
+      }).slice(0, 5);
+
+      const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
+          (search || '').replace(citationRegex, '').trim()
+      );
+
+      // 성공 시 결과 반환
+      return {
+          related_searches: cleanedRelatedSearches,
+          people_also_ask: cleanedPaas,
+      };
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
+
+      // 503 에러 또는 overload 에러인 경우 재시도
+      const is503Error = error instanceof Error &&
+                         (error.message.includes('503') ||
+                          error.message.includes('overload') ||
+                          error.message.includes('overloaded'));
+
+      if (is503Error && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
+          console.log(`Gemini API 과부하 감지. ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue; // 다음 시도로
+      }
+
+      // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
+      console.error("AI 연관검색어 분석 중 오류 발생:", error);
+
+      if (error instanceof Error) {
+          // 503 서버 과부하 에러
+          if (is503Error) {
+              throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+          }
+
+          // API 응답 문제
+          if (error.message.includes('비어있습니다') || error.message.includes('trim')) {
+              throw new Error('AI가 비어있는 응답을 반환했습니다. 다시 시도해주세요.');
+          }
+
+          // JSON 파싱 문제
+          if (error.message.includes('JSON')) {
+              throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+          }
+
+          // 토큰 제한
+          if (error.message.includes('exceeded') || error.message.includes('limit')) {
+              throw new Error('키워드가 너무 깁니다. 더 짧은 키워드로 시도해주세요.');
+          }
+
+          // 기타 오류
+          throw new Error(`AI 연관검색어 분석 중 오류가 발생했습니다: ${error.message}`);
+      } else {
+          throw new Error('AI 연관검색어 분석 중 알 수 없는 오류가 발생했습니다.');
+      }
     }
   }
+
+  // 모든 재시도 실패
+  throw new Error(`Gemini API 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 
