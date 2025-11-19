@@ -37,58 +37,6 @@ const getChatGPTApiKey = (): string | null => {
     return null;
 };
 
-// Gemini API 재시도 로직을 위한 헬퍼 함수 (모델 폴백 포함)
-const retryGeminiAPI = async <T>(
-    apiCall: (modelName: string) => Promise<T>,
-    operationName: string = 'API 호출',
-    maxRetries: number = 3,
-    initialModel: string = 'gemini-2.5-flash'
-): Promise<T> => {
-    // 폴백 모델 순서: 2.5-flash -> 1.5-flash -> 1.5-pro
-    const fallbackModels = ['gemini-2.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
-    let currentModelIndex = fallbackModels.indexOf(initialModel);
-    if (currentModelIndex === -1) currentModelIndex = 0;
-
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const currentModel = fallbackModels[currentModelIndex];
-            return await apiCall(currentModel);
-        } catch (error) {
-            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
-
-            // 503 에러 또는 overload 에러 감지
-            const is503Error = error instanceof Error &&
-                             (error.message.includes('503') ||
-                              error.message.includes('overload') ||
-                              error.message.includes('overloaded'));
-
-            if (is503Error && attempt < maxRetries) {
-                // 다음 폴백 모델로 전환
-                if (currentModelIndex < fallbackModels.length - 1) {
-                    currentModelIndex++;
-                    const nextModel = fallbackModels[currentModelIndex];
-                    console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. 더 안정적인 모델(${nextModel})로 전환 중...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기 후 전환
-                } else {
-                    // 모든 모델 시도했으면 exponential backoff
-                    const delay = Math.pow(2, attempt) * 1000;
-                    console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-                continue;
-            }
-
-            // 재시도 불가능한 에러이거나 마지막 시도면 즉시 throw
-            throw error;
-        }
-    }
-
-    // 모든 재시도 실패
-    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
-};
-
 // NOTE: To combat the inherent unreliability of public CORS proxies, this service employs a highly resilient, multi-strategy approach.
 // 1. Diverse Strategies: It uses a list of proxies that work differently (e.g., direct pass-through vs. JSON-wrapped content), increasing the chance that at least one method will bypass blocking or server issues.
 // 2. Increased Timeout: A generous 15-second timeout accommodates slower proxies.
@@ -287,7 +235,7 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     const trimmedKeyword = keyword.trim().slice(0, 100);
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // 더 안정적인 모델 사용
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const prompt = `
     당신은 Google 검색을 활용하여 실시간 정보를 분석하는 최고의 SEO 전문가이자 콘텐츠 전략가입니다.
@@ -344,126 +292,95 @@ export const generateRelatedKeywords = async (keyword: string): Promise<GoogleSe
     \`\`\`
   `.trim();
 
-  // 재시도 로직 추가 (exponential backoff)
-  const maxRetries = 3;
-  let lastError: Error | null = null;
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log('Related Keywords - AI 원본 응답:', text);
+
+    if (!text) {
+        throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
+    }
+
+    let keywords;
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+        // Try direct JSON parsing first (for structured output)
+        keywords = JSON.parse(text);
+        console.log('Related Keywords - 직접 JSON 파싱 성공');
+    } catch (jsonError) {
+        console.log('Related Keywords - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+        // Fallback to extractJsonFromText for markdown code blocks
+        keywords = extractJsonFromText(text);
+    }
 
-      console.log('Related Keywords - AI 원본 응답:', text);
+    console.log('Related Keywords - 파싱된 데이터:', keywords);
 
-      if (!text) {
-          throw new Error('AI가 빈 응답을 반환했습니다. 다시 시도해주세요.');
-      }
+    // Enhanced validation but keep it simple
+    if (!keywords || typeof keywords !== 'object') {
+        console.error('Related Keywords - 객체가 아님:', keywords);
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
 
-      let keywords;
-      try {
-          // Try direct JSON parsing first (for structured output)
-          keywords = JSON.parse(text);
-          console.log('Related Keywords - 직접 JSON 파싱 성공');
-      } catch (jsonError) {
-          console.log('Related Keywords - 직접 JSON 파싱 실패, extractJsonFromText 사용');
-          // Fallback to extractJsonFromText for markdown code blocks
-          keywords = extractJsonFromText(text);
-      }
+    if (!keywords.related_searches || !keywords.people_also_ask) {
+        console.error('Related Keywords - 필수 속성 누락:', keywords);
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
 
-      console.log('Related Keywords - 파싱된 데이터:', keywords);
+    if (!Array.isArray(keywords.related_searches) || !Array.isArray(keywords.people_also_ask)) {
+        console.error('Related Keywords - 배열이 아님:', {
+            related_searches: keywords.related_searches,
+            people_also_ask: keywords.people_also_ask
+        });
+        throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+    }
 
-      // Enhanced validation but keep it simple
-      if (!keywords || typeof keywords !== 'object') {
-          console.error('Related Keywords - 객체가 아님:', keywords);
-          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-      }
+    // Type validation and cleaning
+    const citationRegex = /\[\d+(, ?\d+)*\]/g;
 
-      if (!keywords.related_searches || !keywords.people_also_ask) {
-          console.error('Related Keywords - 필수 속성 누락:', keywords);
-          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-      }
+    const cleanedPaas = keywords.people_also_ask.map((paa: any, index: number) => {
+        // Provide fallback values if properties are missing
+        return {
+            question: (paa?.question || `질문 ${index + 1}`).replace(citationRegex, '').trim(),
+            answer: (paa?.answer || '답변을 찾을 수 없습니다.').replace(citationRegex, '').trim(),
+            content_gap_analysis: (paa?.content_gap_analysis || '분석 정보가 없습니다.').replace(citationRegex, '').trim(),
+        };
+    }).slice(0, 5);
 
-      if (!Array.isArray(keywords.related_searches) || !Array.isArray(keywords.people_also_ask)) {
-          console.error('Related Keywords - 배열이 아님:', {
-              related_searches: keywords.related_searches,
-              people_also_ask: keywords.people_also_ask
-          });
-          throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-      }
+    const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
+        (search || '').replace(citationRegex, '').trim()
+    );
 
-      // Type validation and cleaning
-      const citationRegex = /\[\d+(, ?\d+)*\]/g;
+    return {
+        related_searches: cleanedRelatedSearches,
+        people_also_ask: cleanedPaas,
+    };
 
-      const cleanedPaas = keywords.people_also_ask.map((paa: any, index: number) => {
-          // Provide fallback values if properties are missing
-          return {
-              question: (paa?.question || `질문 ${index + 1}`).replace(citationRegex, '').trim(),
-              answer: (paa?.answer || '답변을 찾을 수 없습니다.').replace(citationRegex, '').trim(),
-              content_gap_analysis: (paa?.content_gap_analysis || '분석 정보가 없습니다.').replace(citationRegex, '').trim(),
-          };
-      }).slice(0, 5);
-
-      const cleanedRelatedSearches = keywords.related_searches.map((search: string) =>
-          (search || '').replace(citationRegex, '').trim()
-      );
-
-      // 성공 시 결과 반환
-      return {
-          related_searches: cleanedRelatedSearches,
-          people_also_ask: cleanedPaas,
-      };
-
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
-
-      // 503 에러 또는 overload 에러인 경우 재시도
-      const is503Error = error instanceof Error &&
-                         (error.message.includes('503') ||
-                          error.message.includes('overload') ||
-                          error.message.includes('overloaded'));
-
-      if (is503Error && attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
-          console.log(`Gemini API 과부하 감지. ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue; // 다음 시도로
-      }
-
-      // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
-      console.error("AI 연관검색어 분석 중 오류 발생:", error);
-
-      if (error instanceof Error) {
-          // 503 서버 과부하 에러
-          if (is503Error) {
-              throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
-          }
-
-          // API 응답 문제
-          if (error.message.includes('비어있습니다') || error.message.includes('trim')) {
-              throw new Error('AI가 비어있는 응답을 반환했습니다. 다시 시도해주세요.');
-          }
-
-          // JSON 파싱 문제
-          if (error.message.includes('JSON')) {
-              throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
-          }
-
-          // 토큰 제한
-          if (error.message.includes('exceeded') || error.message.includes('limit')) {
-              throw new Error('키워드가 너무 깁니다. 더 짧은 키워드로 시도해주세요.');
-          }
-
-          // 기타 오류
-          throw new Error(`AI 연관검색어 분석 중 오류가 발생했습니다: ${error.message}`);
-      } else {
-          throw new Error('AI 연관검색어 분석 중 알 수 없는 오류가 발생했습니다.');
-      }
+  } catch (error) {
+    console.error("AI 연관검색어 분석 중 오류 발생:", error);
+    
+    if (error instanceof Error) {
+        // API 응답 문제
+        if (error.message.includes('비어있습니다') || error.message.includes('trim')) {
+            throw new Error('AI가 비어있는 응답을 반환했습니다. 다시 시도해주세요.');
+        }
+        
+        // JSON 파싱 문제
+        if (error.message.includes('JSON')) {
+            throw new Error('AI가 잘못된 형식의 데이터를 반환했습니다. 다른 키워드로 시도해주세요.');
+        }
+        
+        // 토큰 제한
+        if (error.message.includes('exceeded') || error.message.includes('limit')) {
+            throw new Error('키워드가 너무 깁니다. 더 짧은 키워드로 시도해주세요.');
+        }
+        
+        // 기타 오류
+        throw new Error(`AI 연관검색어 분석 중 오류가 발생했습니다: ${error.message}`);
+    } else {
+        throw new Error('AI 연관검색어 분석 중 알 수 없는 오류가 발생했습니다.');
     }
   }
-
-  // 모든 재시도 실패
-  throw new Error(`Gemini API 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 
@@ -761,7 +678,7 @@ export const analyzeKeywordCompetition = async (keyword: string): Promise<Keywor
     const processedKeyword = keyword.length > 100 ? keyword.substring(0, 100) : keyword;
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -914,7 +831,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
     }
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     const wrapperPrompt = `
     당신은 AI 어시스턴트이며, 사용자의 프롬프트를 실행하고 그 결과를 구조화된 SEO 분석 보고서 형식으로 변환하는 임무를 받았습니다.
@@ -1014,7 +931,7 @@ export const executePromptAsCompetitionAnalysis = async (prompt: string): Promis
 
 const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTopic[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const responseSchema = {
       type: SchemaType.ARRAY,
@@ -1038,96 +955,64 @@ const callGenerativeModelForTopics = async (prompt: string): Promise<GeneratedTo
       }
     };
 
-    // 재시도 로직 추가 (exponential backoff)
-    const maxRetries = 3;
-    let lastError: Error | null = null;
+    try {
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema
+            }
+        });
+        const response = await result.response;
+        const text = response.text();
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        console.log('Blog Topics - AI 원본 응답:', text);
+
+        let parsed;
         try {
-            const result = await model.generateContent({
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: responseSchema
-                }
-            });
-            const response = await result.response;
-            const text = response.text();
+            // Try direct JSON parsing first (for structured output)
+            parsed = JSON.parse(text);
+            console.log('Blog Topics - 직접 JSON 파싱 성공');
+        } catch (jsonError) {
+            console.log('Blog Topics - 직접 JSON 파싱 실패, extractJsonFromText 사용');
+            // Fallback to extractJsonFromText for markdown code blocks
+            parsed = extractJsonFromText(text);
+        }
 
-            console.log('Blog Topics - AI 원본 응답:', text);
+        console.log('Blog Topics - 파싱된 데이터:', parsed);
+        console.log('Blog Topics - 데이터 타입:', typeof parsed);
+        console.log('Blog Topics - 배열인가?:', Array.isArray(parsed));
 
-            let parsed;
-            try {
-                // Try direct JSON parsing first (for structured output)
-                parsed = JSON.parse(text);
-                console.log('Blog Topics - 직접 JSON 파싱 성공');
-            } catch (jsonError) {
-                console.log('Blog Topics - 직접 JSON 파싱 실패, extractJsonFromText 사용');
-                // Fallback to extractJsonFromText for markdown code blocks
-                parsed = extractJsonFromText(text);
+        if (!Array.isArray(parsed)) {
+            console.error('Blog Topics - 배열이 아닌 데이터:', parsed);
+            throw new Error('AI 응답이 배열 형식이 아닙니다.');
+        }
+
+        return parsed.map((item, index) => {
+            if (!item.title || !item.thumbnailCopy || !item.strategy) {
+                console.error(`Blog Topics - 항목 ${index + 1}에 필수 속성이 누락됨:`, item);
+                throw new Error(`AI 응답의 ${index + 1}번째 항목에 필수 속성이 누락되었습니다.`);
             }
+            return {
+                id: index + 1,
+                title: item.title,
+                thumbnailCopy: item.thumbnailCopy,
+                strategy: item.strategy,
+            };
+        });
 
-            console.log('Blog Topics - 파싱된 데이터:', parsed);
-            console.log('Blog Topics - 데이터 타입:', typeof parsed);
-            console.log('Blog Topics - 배열인가?:', Array.isArray(parsed));
-
-            if (!Array.isArray(parsed)) {
-                console.error('Blog Topics - 배열이 아닌 데이터:', parsed);
-                throw new Error('AI 응답이 배열 형식이 아닙니다.');
+    } catch (error) {
+         if (error instanceof Error) {
+            console.error("Gemini API 호출 중 오류 발생:", error);
+            if (error.message.includes('JSON')) {
+                 throw new Error(`AI 모델이 비정상적인 데이터를 반환했습니다. 다른 키워드로 다시 시도해주세요.`);
             }
-
-            // 성공 시 결과 반환
-            return parsed.map((item, index) => {
-                if (!item.title || !item.thumbnailCopy || !item.strategy) {
-                    console.error(`Blog Topics - 항목 ${index + 1}에 필수 속성이 누락됨:`, item);
-                    throw new Error(`AI 응답의 ${index + 1}번째 항목에 필수 속성이 누락되었습니다.`);
-                }
-                return {
-                    id: index + 1,
-                    title: item.title,
-                    thumbnailCopy: item.thumbnailCopy,
-                    strategy: item.strategy,
-                };
-            });
-
-        } catch (error) {
-            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
-
-            // 503 에러 또는 overload 에러인 경우 재시도
-            const is503Error = error instanceof Error &&
-                             (error.message.includes('503') ||
-                              error.message.includes('overload') ||
-                              error.message.includes('overloaded'));
-
-            if (is503Error && attempt < maxRetries) {
-                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
-                console.log(`Gemini API 과부하 감지 (블로그 주제 생성). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue; // 다음 시도로
-            }
-
-            // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
-            if (error instanceof Error) {
-                console.error("Gemini API 호출 중 오류 발생:", error);
-
-                // 503 서버 과부하 에러
-                if (is503Error) {
-                    throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
-                }
-
-                if (error.message.includes('JSON')) {
-                    throw new Error(`AI 모델이 비정상적인 데이터를 반환했습니다. 다른 키워드로 다시 시도해주세요.`);
-                }
-                throw new Error(`블로그 주제 생성 중 AI 모델과 통신하는 데 실패했습니다. 오류: ${error.message}`);
-            } else {
-                console.error("알 수 없는 오류 발생:", error);
-                throw new Error('블로그 주제 생성 중 알 수 없는 오류가 발생했습니다.');
-            }
+            throw new Error(`블로그 주제 생성 중 AI 모델과 통신하는 데 실패했습니다. 오류: ${error.message}`);
+        } else {
+            console.error("알 수 없는 오류 발생:", error);
+            throw new Error('블로그 주제 생성 중 알 수 없는 오류가 발생했습니다.');
         }
     }
-
-    // 모든 재시도 실패
-    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 export const generateTopicsFromMainKeyword = async (keyword: string): Promise<GeneratedTopic[]> => {
@@ -1173,7 +1058,7 @@ export const generateBlogStrategy = async (keyword: string, posts: BlogPostData[
     if (!posts || posts.length === 0) throw new Error("분석할 블로그 포스트 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const topTitles = posts.map((p, i) => `${i + 1}. ${p.title}`).join('\n');
 
@@ -1283,7 +1168,7 @@ export const generateSerpStrategy = async (keyword: string, serpData: GoogleSerp
     if (!serpData) throw new Error("분석할 SERP 데이터가 없습니다.");
 
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1403,7 +1288,7 @@ ${paaText}
 
 export const fetchRecommendedKeywords = async (): Promise<RecommendedKeyword[]> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -1492,7 +1377,7 @@ export const generateSustainableTopics = async (keyword: string): Promise<Sustai
         throw new Error("주제를 생성할 키워드가 비어있습니다.");
     }
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
@@ -1919,7 +1804,7 @@ export const generateTrendBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     // 오늘 날짜
     const today = new Date();
@@ -2268,7 +2153,7 @@ const generateBlogPostWithNews = async (
     newsInfo: any
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const today = new Date();
     const formattedDate = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
@@ -2506,7 +2391,7 @@ export const generateBlogPost = async (
     contentFormat?: 'comparison' | 'listicle' | 'guide'
 ): Promise<{ title: string; content: string; format: 'html' | 'markdown' | 'text'; schemaMarkup?: string; htmlPreview?: string; metadata?: { keywords: string; imagePrompt: string; seoTitles: string[] } }> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const toneMap = {
         friendly: '친근하고 대화하는 듯한 톤 ("~해요", "~예요" 반말체)',
@@ -2976,21 +2861,16 @@ ${formatTemplate}
         `.trim();
     }
 
-    // 재시도 로직 추가 (exponential backoff)
-    const maxRetries = 3;
-    let lastError: Error | null = null;
+    try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+        let content = text.trim();
 
-            let content = text.trim();
-
-            // Extract title and content
-            let title = '';
-            let finalContent = content;
+        // Extract title and content
+        let title = '';
+        let finalContent = content;
 
         // 네이버와 구글 모두 [TITLE], [CONTENT] 형식 사용
         const titleMatch = content.match(/\[TITLE\]([\s\S]*?)\[\/TITLE\]/);
@@ -3165,51 +3045,25 @@ ${formatTemplate}
             }
         }
 
-            // 성공 시 결과 반환
-            return {
-                title,
-                content: finalContent,
-                format: 'html', // 네이버와 구글 모두 HTML 형식 사용
-                schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
-                htmlPreview: htmlPreview || undefined,
-                metadata
-            };
-
-        } catch (error) {
-            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
-
-            // 503 에러 또는 overload 에러인 경우 재시도
-            const is503Error = error instanceof Error &&
-                             (error.message.includes('503') ||
-                              error.message.includes('overload') ||
-                              error.message.includes('overloaded'));
-
-            if (is503Error && attempt < maxRetries) {
-                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
-                console.log(`Gemini API 과부하 감지 (블로그 글쓰기). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                continue; // 다음 시도로
-            }
-
-            // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
-            if (error instanceof Error) {
-                // 503 서버 과부하 에러
-                if (is503Error) {
-                    throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
-                }
-                throw new Error(`블로그 글 생성 중 오류 발생: ${error.message}`);
-            }
-            throw new Error('블로그 글 생성 중 알 수 없는 오류가 발생했습니다.');
+        return {
+            title,
+            content: finalContent,
+            format: 'html', // 네이버와 구글 모두 HTML 형식 사용
+            schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
+            htmlPreview: htmlPreview || undefined,
+            metadata
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`블로그 글 생성 중 오류 발생: ${error.message}`);
         }
+        throw new Error('블로그 글 생성 중 알 수 없는 오류가 발생했습니다.');
     }
-
-    // 모든 재시도 실패
-    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
     const genAI = new GoogleGenerativeAI(getApiKey());
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     const prompt = `
     오늘 서울의 현재 날씨를 데스크톱 버전의 Google 검색을 사용해서 알려주세요. 
     온도, 날씨 상태(예: 맑음, 구름 많음), 풍속, 습도를 포함해야 합니다. 
