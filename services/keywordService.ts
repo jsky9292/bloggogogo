@@ -37,6 +37,42 @@ const getChatGPTApiKey = (): string | null => {
     return null;
 };
 
+// Gemini API 재시도 로직을 위한 헬퍼 함수
+const retryGeminiAPI = async <T>(
+    apiCall: () => Promise<T>,
+    operationName: string = 'API 호출',
+    maxRetries: number = 3
+): Promise<T> => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await apiCall();
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
+
+            // 503 에러 또는 overload 에러 감지
+            const is503Error = error instanceof Error &&
+                             (error.message.includes('503') ||
+                              error.message.includes('overload') ||
+                              error.message.includes('overloaded'));
+
+            if (is503Error && attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
+                console.log(`Gemini API 과부하 감지 (${operationName}). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            // 재시도 불가능한 에러이거나 마지막 시도면 즉시 throw
+            throw error;
+        }
+    }
+
+    // 모든 재시도 실패
+    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
+};
+
 // NOTE: To combat the inherent unreliability of public CORS proxies, this service employs a highly resilient, multi-strategy approach.
 // 1. Diverse Strategies: It uses a list of proxies that work differently (e.g., direct pass-through vs. JSON-wrapped content), increasing the chance that at least one method will bypass blocking or server issues.
 // 2. Increased Timeout: A generous 15-second timeout accommodates slower proxies.
@@ -2892,16 +2928,21 @@ ${formatTemplate}
         `.trim();
     }
 
-    try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+    // 재시도 로직 추가 (exponential backoff)
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-        let content = text.trim();
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
 
-        // Extract title and content
-        let title = '';
-        let finalContent = content;
+            let content = text.trim();
+
+            // Extract title and content
+            let title = '';
+            let finalContent = content;
 
         // 네이버와 구글 모두 [TITLE], [CONTENT] 형식 사용
         const titleMatch = content.match(/\[TITLE\]([\s\S]*?)\[\/TITLE\]/);
@@ -3076,20 +3117,46 @@ ${formatTemplate}
             }
         }
 
-        return {
-            title,
-            content: finalContent,
-            format: 'html', // 네이버와 구글 모두 HTML 형식 사용
-            schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
-            htmlPreview: htmlPreview || undefined,
-            metadata
-        };
-    } catch (error) {
-        if (error instanceof Error) {
-            throw new Error(`블로그 글 생성 중 오류 발생: ${error.message}`);
+            // 성공 시 결과 반환
+            return {
+                title,
+                content: finalContent,
+                format: 'html', // 네이버와 구글 모두 HTML 형식 사용
+                schemaMarkup: platform === 'google' ? schemaMarkup : undefined,
+                htmlPreview: htmlPreview || undefined,
+                metadata
+            };
+
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error('알 수 없는 오류');
+
+            // 503 에러 또는 overload 에러인 경우 재시도
+            const is503Error = error instanceof Error &&
+                             (error.message.includes('503') ||
+                              error.message.includes('overload') ||
+                              error.message.includes('overloaded'));
+
+            if (is503Error && attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000; // exponential backoff: 2초, 4초, 8초
+                console.log(`Gemini API 과부하 감지 (블로그 글쓰기). ${attempt}/${maxRetries} 시도 실패. ${delay/1000}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue; // 다음 시도로
+            }
+
+            // 재시도 불가능한 에러이거나 마지막 시도였다면 에러 throw
+            if (error instanceof Error) {
+                // 503 서버 과부하 에러
+                if (is503Error) {
+                    throw new Error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+                }
+                throw new Error(`블로그 글 생성 중 오류 발생: ${error.message}`);
+            }
+            throw new Error('블로그 글 생성 중 알 수 없는 오류가 발생했습니다.');
         }
-        throw new Error('블로그 글 생성 중 알 수 없는 오류가 발생했습니다.');
     }
+
+    // 모든 재시도 실패
+    throw new Error(`Gemini AI 서버가 현재 과부하 상태입니다. ${maxRetries}번 시도 후에도 실패했습니다. 잠시 후 다시 시도해주세요.`);
 };
 
 export const fetchCurrentWeather = async (): Promise<WeatherData> => {
