@@ -555,24 +555,33 @@ const App: React.FC = () => {
         setBlogPost(null);
 
         try {
-            // Better keyword extraction including main keyword
-            const keywords = [mainKeyword];
-            const titleWords = topic.title.split(' ').filter(word => {
-                const trimmed = word.trim();
-                // 숫자, 년도, 개수 표현 등 제외
-                return trimmed.length > 2 &&
-                       trimmed !== mainKeyword &&
-                       !/^\d+$/.test(trimmed) && // 숫자만 있는 것 제외
-                       !/\d+년$/.test(trimmed) && // 년도 제외 (2025년 등)
-                       !/(가지|개|번째|위|가지)$/.test(trimmed) && // 개수 표현 제외
-                       !['위한', '하는', '대한', '없는', '있는', '되는', '통한', '모든'].includes(trimmed);
-            });
-            keywords.push(...titleWords.slice(0, 4));
+            // 자동완성 검색어를 해시태그로 사용 (제목에서 추출하지 않음)
+            let effectiveKeywords: string[] = [];
 
-            // If keywords from topic object are available, use them
-            const effectiveKeywords = topic.keywords && topic.keywords.length > 0
-                ? topic.keywords
-                : keywords;
+            // 1순위: topic에 keywords가 있으면 사용
+            if (topic.keywords && topic.keywords.length > 0) {
+                effectiveKeywords = topic.keywords;
+            }
+            // 2순위: results (자동완성 검색어) 사용
+            else if (results && results.length > 0) {
+                effectiveKeywords = results
+                    .map(r => r.keyword)
+                    .filter(kw => {
+                        const trimmed = kw.trim();
+                        // 문장부호, 숫자, 년도, 개수 표현 등 제외
+                        return trimmed.length > 1 &&
+                               !/[.,!?]+$/.test(trimmed) && // 끝에 문장부호 있는 것 제외
+                               !/^\d+$/.test(trimmed) && // 숫자만 있는 것 제외
+                               !/\d+년$/.test(trimmed) && // 년도 제외
+                               !/(가지|개|번째|위)$/.test(trimmed) && // 개수 표현 제외
+                               trimmed !== mainKeyword;
+                    })
+                    .slice(0, 10); // 최대 10개
+            }
+            // 3순위: 메인 키워드만 사용
+            else {
+                effectiveKeywords = [mainKeyword];
+            }
 
             // Gemini 모델로 글 생성 (gemini-2.5-flash-lite 사용)
             const post = await generateBlogPost(topic.title, effectiveKeywords, topic.platform, options.tone, options.contentFormat);
