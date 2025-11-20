@@ -251,15 +251,38 @@ const BlogPostDisplay: React.FC<BlogPostDisplayProps> = ({ title, content, forma
                 </div>
 
                 {platform === 'naver' && (
-                    <div className="bg-gray-900 border border-green-800 rounded-lg p-3 text-xs">
-                        <p className="text-green-400 font-bold mb-1">네이버 블로그 최적화 팁:</p>
-                        <ul className="text-gray-300 space-y-1 list-disc list-inside">
-                            <li>C-rank 로직과 DIA 원칙이 적용되었습니다</li>
-                            <li>이미지는 [이미지: 설명] 위치에 추가하세요</li>
-                            <li>키워드 밀도가 3-5%로 최적화되었습니다</li>
-                            <li className="text-yellow-300">미리보기 화면을 마우스로 드래그하여 선택 후 복사(Ctrl+C)하면 형식이 그대로 유지됩니다</li>
-                        </ul>
-                    </div>
+                    <>
+                        <div className="bg-gray-900 border border-green-800 rounded-lg p-3 text-xs">
+                            <p className="text-green-400 font-bold mb-1">네이버 블로그 최적화 팁:</p>
+                            <ul className="text-gray-300 space-y-1 list-disc list-inside">
+                                <li>C-rank 로직과 DIA 원칙이 적용되었습니다</li>
+                                <li>이미지는 [이미지: 설명] 위치에 추가하세요</li>
+                                <li>키워드 밀도가 3-5%로 최적화되었습니다</li>
+                                <li className="text-yellow-300">미리보기 화면을 마우스로 드래그하여 선택 후 복사(Ctrl+C)하면 형식이 그대로 유지됩니다</li>
+                            </ul>
+                        </div>
+
+                        {/* 네이버 전용: 해시태그 정보 */}
+                        {metadata && (
+                            <div className="bg-gray-900 border border-green-800 rounded-lg p-4 text-xs space-y-3">
+                                <h4 className="text-green-400 font-bold text-sm mb-3">🏷️ 해시태그</h4>
+
+                                {/* 핵심 키워드 (해시태그) */}
+                                <div className="bg-gray-800 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-gray-300 font-semibold">🔍 핵심 키워드 (해시태그)</p>
+                                        <CopyButton textToCopy={metadata.keywords} />
+                                    </div>
+                                    <p className="text-gray-400 break-words">{metadata.keywords}</p>
+                                    <p className="text-gray-500 text-xs mt-2">* 네이버 블로그 하단에 해시태그로 추가하세요</p>
+                                </div>
+
+                                <p className="text-gray-500 text-xs italic text-center pt-2 border-t border-gray-700">
+                                    💡 위 해시태그는 소스코드 복사에 포함되지 않습니다
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {platform === 'google' && (

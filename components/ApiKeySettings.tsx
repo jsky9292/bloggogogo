@@ -138,14 +138,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({ onApiKeyUpdate, onNaver
                 }
                 saved = true;
 
-                // 저장된 API에 따라 안내 메시지
-                if (hasAdApi && hasSearchApi) {
-                    // 모두 저장됨 - 안내 없음
-                } else if (hasAdApi) {
-                    alert('✅ 광고 API 키가 저장되었습니다.\n\n📌 키워드 검색 기능만 사용 가능합니다.\n경쟁도 분석까지 사용하려면 검색 API 키도 입력해주세요.');
-                } else if (hasSearchApi) {
-                    alert('✅ 검색 API 키가 저장되었습니다.\n\n📌 경쟁도 분석 기능만 사용 가능합니다.\n키워드 검색까지 사용하려면 광고 API 키도 입력해주세요.');
-                }
+                // 네이버 API는 선택사항이므로 안내 메시지 없이 저장만 진행
             } else {
                 alert('⚠️ API 키를 저장하려면:\n\n1. 광고 API (키워드 검색용):\n   - API Key, Secret Key, Customer ID\n\n2. 검색 API (경쟁도 분석용):\n   - Client ID, Client Secret\n\n최소 한 세트를 완전히 입력해주세요.');
                 return;

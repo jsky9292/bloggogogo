@@ -557,10 +557,16 @@ const App: React.FC = () => {
         try {
             // Better keyword extraction including main keyword
             const keywords = [mainKeyword];
-            const titleWords = topic.title.split(' ').filter(word =>
-                word.length > 2 && word !== mainKeyword &&
-                !['위한', '하는', '대한', '없는', '있는', '되는'].includes(word)
-            );
+            const titleWords = topic.title.split(' ').filter(word => {
+                const trimmed = word.trim();
+                // 숫자, 년도, 개수 표현 등 제외
+                return trimmed.length > 2 &&
+                       trimmed !== mainKeyword &&
+                       !/^\d+$/.test(trimmed) && // 숫자만 있는 것 제외
+                       !/\d+년$/.test(trimmed) && // 년도 제외 (2025년 등)
+                       !/(가지|개|번째|위|가지)$/.test(trimmed) && // 개수 표현 제외
+                       !['위한', '하는', '대한', '없는', '있는', '되는', '통한', '모든'].includes(trimmed);
+            });
             keywords.push(...titleWords.slice(0, 4));
 
             // If keywords from topic object are available, use them
@@ -1125,16 +1131,13 @@ const App: React.FC = () => {
         localStorage.setItem('naverApiKeys', JSON.stringify(keys));
 
         // 관리자 계정인 경우 Firebase에도 저장
+        // 네이버 API는 선택사항이므로 안내 메시지 없이 저장만 진행
         if (currentUser && currentUser.uid) {
             try {
                 await saveNaverApiKeys(currentUser.uid, keys);
-                alert('✅ 네이버 API 키가 저장되었습니다! (Firebase 동기화 완료)');
             } catch (error) {
                 console.error('Error saving to Firebase:', error);
-                alert('✅ 네이버 API 키가 로컬에 저장되었습니다. (Firebase 동기화 실패)');
             }
-        } else {
-            alert('✅ 네이버 API 키가 로컬에 저장되었습니다!');
         }
     };
 
