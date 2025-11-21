@@ -1714,7 +1714,7 @@ const App: React.FC = () => {
                                             transition: 'all 0.2s'
                                         }}
                                     >
-                                        대시보드
+                                        내 정보
                                     </button>
                                     <button
                                         onClick={() => {

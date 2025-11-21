@@ -131,9 +131,11 @@ const AdminCourseManagement: React.FC = () => {
 
     return (
         <div style={{
-            padding: '2rem',
+            padding: '1.5rem',
             maxWidth: '1200px',
-            margin: '0 auto'
+            margin: '0 auto',
+            height: '100%',
+            overflowY: 'auto'
         }}>
             <h2 style={{
                 fontSize: '1.5rem',
@@ -154,6 +156,132 @@ const AdminCourseManagement: React.FC = () => {
                 <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
                     💡 <strong>코스 구조:</strong> 여기서 만든 코스(예: "마케팅 강의")에 영상을 추가할 때 플랫폼(블로그/인스타/유튜브) 카테고리를 선택할 수 있습니다.
                 </p>
+            </div>
+
+            {/* 빠른 추가 버튼 */}
+            <div style={{
+                display: 'flex',
+                gap: '0.75rem',
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap'
+            }}>
+                <button
+                    onClick={async () => {
+                        const exists = courses.some(c => c.title === 'KeyWinSight 사용법');
+                        if (exists) {
+                            alert('이미 "KeyWinSight 사용법" 코스가 존재합니다.');
+                            return;
+                        }
+                        try {
+                            await addDoc(collection(db, 'courses'), {
+                                title: 'KeyWinSight 사용법',
+                                description: 'KeyWinSight 서비스 사용법을 안내하는 튜토리얼 영상입니다.',
+                                thumbnail: '',
+                                requiredTier: 'free',
+                                order: 0,
+                                createdAt: new Date()
+                            });
+                            alert('✅ "KeyWinSight 사용법" 코스가 추가되었습니다!');
+                            fetchCourses();
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('코스 추가에 실패했습니다.');
+                        }
+                    }}
+                    style={{
+                        padding: '0.75rem 1.25rem',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    🎓 사용법 강의 코스 추가
+                </button>
+                <button
+                    onClick={async () => {
+                        const exists = courses.some(c => c.title === '블로그 마케팅');
+                        if (exists) {
+                            alert('이미 "블로그 마케팅" 코스가 존재합니다.');
+                            return;
+                        }
+                        try {
+                            await addDoc(collection(db, 'courses'), {
+                                title: '블로그 마케팅',
+                                description: '블로그를 활용한 마케팅 전략과 SEO 최적화 방법을 배웁니다.',
+                                thumbnail: '',
+                                requiredTier: 'basic',
+                                order: 10,
+                                createdAt: new Date()
+                            });
+                            alert('✅ "블로그 마케팅" 코스가 추가되었습니다!');
+                            fetchCourses();
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('코스 추가에 실패했습니다.');
+                        }
+                    }}
+                    style={{
+                        padding: '0.75rem 1.25rem',
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    📝 블로그 마케팅 코스 추가
+                </button>
+                <button
+                    onClick={async () => {
+                        const exists = courses.some(c => c.title === '인스타그램 마케팅');
+                        if (exists) {
+                            alert('이미 "인스타그램 마케팅" 코스가 존재합니다.');
+                            return;
+                        }
+                        try {
+                            await addDoc(collection(db, 'courses'), {
+                                title: '인스타그램 마케팅',
+                                description: '인스타그램을 활용한 브랜딩과 마케팅 전략을 배웁니다.',
+                                thumbnail: '',
+                                requiredTier: 'basic',
+                                order: 20,
+                                createdAt: new Date()
+                            });
+                            alert('✅ "인스타그램 마케팅" 코스가 추가되었습니다!');
+                            fetchCourses();
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('코스 추가에 실패했습니다.');
+                        }
+                    }}
+                    style={{
+                        padding: '0.75rem 1.25rem',
+                        background: 'linear-gradient(135deg, #ec4899, #be185d)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    📸 인스타그램 마케팅 코스 추가
+                </button>
             </div>
 
             {/* Add New Course Form */}

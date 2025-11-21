@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, updateUserSubscription } from '../src/config/firebase';
 import EmailComposer from './EmailComposer';
-import AdminVideoManagement from './AdminVideoManagement';
-import AdminCourseManagement from './AdminCourseManagement';
+import AdminTutorialManagement from './AdminTutorialManagement';
+import AdminCourseWithVideos from './AdminCourseWithVideos';
 
 interface User {
     uid: string;
@@ -40,7 +40,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [showEmailModal, setShowEmailModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'users' | 'courses' | 'videos'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'tutorials' | 'courses'>('users');
     const [stats, setStats] = useState({
         totalUsers: 0,
         freeUsers: 0,
@@ -273,7 +273,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
             <div style={{
                 width: '90%',
                 maxWidth: '1200px',
-                maxHeight: '90vh',
+                height: '90vh',
                 backgroundColor: '#ffffff',
                 borderRadius: '12px',
                 overflow: 'hidden',
@@ -282,72 +282,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
             }}>
                 {/* Header */}
                 <div style={{
-                    padding: '20px',
+                    padding: '12px 20px',
                     borderBottom: '1px solid #e5e7eb',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
                     background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    {/* 상단: 제목 + 액션 버튼 */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
+                    }}>
                         <h2 style={{
-                            fontSize: '1.5rem',
+                            fontSize: '1.25rem',
                             fontWeight: 'bold',
-                            color: '#ffffff'
+                            color: '#ffffff',
+                            margin: 0
                         }}>
                             관리자 대시보드
                         </h2>
-
-                        {/* Tab Navigation */}
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
-                                onClick={() => setActiveTab('users')}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: activeTab === 'users' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-                                    color: '#ffffff',
-                                    border: activeTab === 'users' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                사용자 관리
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('courses')}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: activeTab === 'courses' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-                                    color: '#ffffff',
-                                    border: activeTab === 'courses' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                코스 관리
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('videos')}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: activeTab === 'videos' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-                                    color: '#ffffff',
-                                    border: activeTab === 'videos' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.875rem',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                영상 관리
-                            </button>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button
                             onClick={() => setShowEmailModal(true)}
                             style={{
@@ -423,6 +377,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                             }}
                         >
                             닫기
+                        </button>
+                        </div>
+                    </div>
+
+                    {/* 하단: 탭 네비게이션 */}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                            onClick={() => setActiveTab('users')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: activeTab === 'users' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                                color: '#ffffff',
+                                border: activeTab === 'users' ? '2px solid rgba(255, 255, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600'
+                            }}
+                        >
+                            👥 사용자 관리
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('tutorials')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: activeTab === 'tutorials' ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+                                color: '#ffffff',
+                                border: activeTab === 'tutorials' ? '2px solid rgba(16, 185, 129, 0.8)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600'
+                            }}
+                        >
+                            🎓 사용법 강의
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('courses')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: activeTab === 'courses' ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+                                color: '#ffffff',
+                                border: activeTab === 'courses' ? '2px solid rgba(139, 92, 246, 0.8)' : '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '600'
+                            }}
+                        >
+                            📚 코스/강의 관리
                         </button>
                     </div>
                 </div>
@@ -801,12 +805,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, onRefr
                             users={users}
                         />
                     </>
-                ) : activeTab === 'courses' ? (
-                    /* Course Management Tab */
-                    <AdminCourseManagement />
+                ) : activeTab === 'tutorials' ? (
+                    /* Tutorial Management Tab - 사용법 강의 */
+                    <div style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        maxHeight: 'calc(90vh - 100px)'
+                    }}>
+                        <AdminTutorialManagement />
+                    </div>
                 ) : (
-                    /* Video Management Tab */
-                    <AdminVideoManagement />
+                    /* Course with Videos Management Tab - 코스/강의 관리 */
+                    <div style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        maxHeight: 'calc(90vh - 100px)'
+                    }}>
+                        <AdminCourseWithVideos />
+                    </div>
                 )}
             </div>
         </div>

@@ -32,6 +32,7 @@ const AdminVideoManagement: React.FC = () => {
         url: '',
         description: '',
         requiredTier: 'free' as 'free' | 'basic' | 'pro' | 'enterprise',
+        category: 'tutorial' as 'tutorial' | 'feature' | 'tip' | 'promotion',
         order: 0,
         duration: '',
         views: 0
@@ -100,6 +101,7 @@ const AdminVideoManagement: React.FC = () => {
                 url: '',
                 description: '',
                 requiredTier: 'free',
+                category: 'tutorial',
                 order: 0,
                 duration: '',
                 views: 0
@@ -259,11 +261,12 @@ const AdminVideoManagement: React.FC = () => {
 
     return (
         <div style={{
-            padding: '2rem',
+            padding: '1.5rem',
             maxWidth: '1400px',
             margin: '0 auto',
             background: '#f9fafb',
-            minHeight: '100vh'
+            height: '100%',
+            overflowY: 'auto'
         }}>
             {/* Header */}
             <div style={{ marginBottom: '2rem' }}>
@@ -552,81 +555,142 @@ const AdminVideoManagement: React.FC = () => {
                 )}
             </div>
 
-            {/* Add New Video Form */}
+            {/* Add New Video Form - 개선된 UI */}
             <div style={{
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #3730a3 100%)',
+                borderRadius: '16px',
+                padding: '2rem',
                 marginBottom: '2rem',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.3)'
             }}>
                 <h3 style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '600',
-                    marginBottom: '1rem',
-                    color: '#111827',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    marginBottom: '1.5rem',
+                    color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem'
+                    gap: '0.75rem'
                 }}>
-                    <span>➕</span> 새 영상 추가
+                    <span style={{
+                        background: 'rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        padding: '0.5rem',
+                        display: 'flex'
+                    }}>🎬</span>
+                    새 영상 추가
                 </h3>
 
                 {courses.length === 0 && (
                     <div style={{
-                        padding: '1rem',
-                        background: '#fef3c7',
-                        border: '1px solid #f59e0b',
-                        borderRadius: '8px',
-                        marginBottom: '1rem'
+                        padding: '1rem 1.25rem',
+                        background: 'rgba(251, 191, 36, 0.2)',
+                        border: '1px solid rgba(251, 191, 36, 0.5)',
+                        borderRadius: '10px',
+                        marginBottom: '1.5rem'
                     }}>
-                        <p style={{ fontSize: '0.875rem', color: '#92400e' }}>
+                        <p style={{ fontSize: '0.875rem', color: '#fef3c7', margin: 0 }}>
                             ⚠️ 먼저 코스를 생성해주세요. 코스 관리 탭에서 추가할 수 있습니다.
                         </p>
                     </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+                {/* 카테고리 선택 - 사용법 강의 vs 일반 강의 */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    marginBottom: '1.5rem'
+                }}>
+                    <label style={{
+                        display: 'block',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        marginBottom: '0.75rem',
+                        color: '#e0e7ff'
+                    }}>
+                        📂 영상 카테고리 (메인화면 표시 위치)
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        {[
+                            { value: 'tutorial', label: '🎓 사용법 강의', desc: '메인 > 사용법 강의 탭' },
+                            { value: 'feature', label: '⚡ 기능 설명', desc: '메인 > 사용법 강의 탭' },
+                            { value: 'tip', label: '💡 팁/노하우', desc: '메인 > 사용법 강의 탭' },
+                            { value: 'promotion', label: '📢 홍보', desc: '메인 > 사용법 강의 탭' }
+                        ].map(cat => (
+                            <button
+                                key={cat.value}
+                                onClick={() => setNewVideo({ ...newVideo, category: cat.value as any })}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    background: newVideo.category === cat.value
+                                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                                        : 'rgba(255,255,255,0.1)',
+                                    color: '#ffffff',
+                                    border: newVideo.category === cat.value
+                                        ? '2px solid #34d399'
+                                        : '1px solid rgba(255,255,255,0.2)',
+                                    borderRadius: '10px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#a5b4fc', marginTop: '0.5rem' }}>
+                        * 사용법 강의를 선택하면 메인화면 "사용법 강의" 탭에 표시됩니다.
+                    </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                    {/* 소속 코스 */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            소속 코스 *
+                            📚 소속 코스 *
                         </label>
                         <select
                             value={newVideo.courseId}
                             onChange={(e) => setNewVideo({ ...newVideo, courseId: e.target.value })}
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff',
+                                cursor: 'pointer'
                             }}
                         >
-                            <option value="">코스를 선택하세요</option>
+                            <option value="" style={{ color: '#1f2937' }}>코스를 선택하세요</option>
                             {courses.map(course => (
-                                <option key={course.id} value={course.id}>
+                                <option key={course.id} value={course.id} style={{ color: '#1f2937' }}>
                                     {course.title}
                                 </option>
                             ))}
                         </select>
                     </div>
 
+                    {/* 제목 */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            제목 *
+                            ✏️ 영상 제목 *
                         </label>
                         <input
                             type="text"
@@ -635,101 +699,114 @@ const AdminVideoManagement: React.FC = () => {
                             placeholder="영상 제목을 입력하세요"
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
                             }}
                         />
                     </div>
 
-                    <div>
+                    {/* URL */}
+                    <div style={{ gridColumn: 'span 2' }}>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            영상 URL * (YouTube, Vimeo)
+                            🔗 영상 URL * (YouTube, Vimeo)
                         </label>
                         <input
                             type="text"
                             value={newVideo.url}
                             onChange={(e) => setNewVideo({ ...newVideo, url: e.target.value })}
-                            placeholder="https://youtube.com/watch?v=..."
+                            placeholder="https://youtube.com/watch?v=... 또는 https://vimeo.com/..."
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
                             }}
                         />
                     </div>
 
+                    {/* 재생시간 */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            재생시간 (예: 10:25)
+                            ⏱️ 재생시간
                         </label>
                         <input
                             type="text"
                             value={newVideo.duration}
                             onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })}
-                            placeholder="10:25"
+                            placeholder="예: 10:25"
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
                             }}
                         />
                     </div>
 
+                    {/* 필요 등급 */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            필요 등급
+                            🎯 필요 등급
                         </label>
                         <select
                             value={newVideo.requiredTier}
                             onChange={(e) => setNewVideo({ ...newVideo, requiredTier: e.target.value as any })}
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff',
+                                cursor: 'pointer'
                             }}
                         >
-                            <option value="free">무료 (Free)</option>
-                            <option value="basic">베이직 (Basic)</option>
-                            <option value="pro">프로 (Pro)</option>
-                            <option value="enterprise">엔터프라이즈 (Enterprise)</option>
+                            <option value="free" style={{ color: '#1f2937' }}>🆓 무료 (Free)</option>
+                            <option value="basic" style={{ color: '#1f2937' }}>💎 베이직 (Basic)</option>
+                            <option value="pro" style={{ color: '#1f2937' }}>⭐ 프로 (Pro)</option>
+                            <option value="enterprise" style={{ color: '#1f2937' }}>👑 엔터프라이즈</option>
                         </select>
                     </div>
 
+                    {/* 순서 */}
                     <div>
                         <label style={{
                             display: 'block',
                             fontSize: '0.875rem',
-                            fontWeight: '500',
+                            fontWeight: '600',
                             marginBottom: '0.5rem',
-                            color: '#374151'
+                            color: '#e0e7ff'
                         }}>
-                            순서 (낮을수록 먼저)
+                            🔢 순서 (낮을수록 먼저)
                         </label>
                         <input
                             type="number"
@@ -737,58 +814,69 @@ const AdminVideoManagement: React.FC = () => {
                             onChange={(e) => setNewVideo({ ...newVideo, order: parseInt(e.target.value) || 0 })}
                             style={{
                                 width: '100%',
-                                padding: '0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                fontSize: '0.875rem'
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff'
                             }}
                         />
                     </div>
-                </div>
 
-                <div style={{ marginTop: '1rem' }}>
-                    <label style={{
-                        display: 'block',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        marginBottom: '0.5rem',
-                        color: '#374151'
-                    }}>
-                        설명
-                    </label>
-                    <textarea
-                        value={newVideo.description}
-                        onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })}
-                        placeholder="영상 설명을 입력하세요"
-                        rows={3}
-                        style={{
-                            width: '100%',
-                            padding: '0.5rem',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '6px',
+                    {/* 설명 */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                        <label style={{
+                            display: 'block',
                             fontSize: '0.875rem',
-                            resize: 'vertical'
-                        }}
-                    />
+                            fontWeight: '600',
+                            marginBottom: '0.5rem',
+                            color: '#e0e7ff'
+                        }}>
+                            📝 영상 설명
+                        </label>
+                        <textarea
+                            value={newVideo.description}
+                            onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })}
+                            placeholder="영상에 대한 설명을 입력하세요"
+                            rows={3}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem 1rem',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                background: 'rgba(255,255,255,0.1)',
+                                color: '#ffffff',
+                                resize: 'vertical'
+                            }}
+                        />
+                    </div>
                 </div>
 
                 <button
                     onClick={handleAddVideo}
                     disabled={courses.length === 0}
                     style={{
-                        marginTop: '1rem',
-                        padding: '0.75rem 1.5rem',
-                        background: courses.length === 0 ? '#9ca3af' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        marginTop: '1.5rem',
+                        padding: '1rem 2rem',
+                        background: courses.length === 0
+                            ? 'rgba(255,255,255,0.2)'
+                            : 'linear-gradient(135deg, #10b981, #059669)',
                         color: '#ffffff',
                         border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
+                        borderRadius: '12px',
+                        fontSize: '1rem',
+                        fontWeight: '700',
                         cursor: courses.length === 0 ? 'not-allowed' : 'pointer',
-                        boxShadow: courses.length === 0 ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        boxShadow: courses.length === 0 ? 'none' : '0 4px 15px rgba(16, 185, 129, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.2s'
                     }}
                 >
-                    영상 추가
+                    <span>🚀</span> 영상 추가하기
                 </button>
             </div>
 

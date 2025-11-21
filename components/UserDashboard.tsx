@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile, checkUsageLimit, getDailyUsage, PLAN_DAILY_LIMITS } from '../src/config/firebase';
 import RankingTracker from './RankingTracker';
+import ApiKeySettings from './ApiKeySettings';
 
 interface UserDashboardProps {
   user: UserProfile;
   onClose: () => void;
   onUpgradePlan: () => void;
+  onApiKeyUpdate?: (apiKey: string) => void;
+  onNaverApiKeyUpdate?: (clientId: string, clientSecret: string) => void;
 }
 
-const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan }) => {
+const UserDashboard: React.FC<UserDashboardProps> = ({ user, onClose, onUpgradePlan, onApiKeyUpdate, onNaverApiKeyUpdate }) => {
   const [selectedTab, setSelectedTab] = useState<'info' | 'ranking'>('info');
   const [remainingSearches, setRemainingSearches] = useState<number>(0);
   const [hasLimit, setHasLimit] = useState<boolean>(true);

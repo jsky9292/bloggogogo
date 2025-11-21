@@ -23,7 +23,7 @@ const VideoTutorials: React.FC = () => {
 
     const fetchVideos = async () => {
         try {
-            const videosCollection = collection(db, 'videos');
+            const videosCollection = collection(db, 'tutorial_videos');
             const snapshot = await getDocs(videosCollection);
             const videoList = snapshot.docs.map(doc => ({
                 id: doc.id,
